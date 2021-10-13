@@ -94,6 +94,14 @@ var (
 	ErrRollbackMapIsNotEmpty = errors.New("rollback map is not empty")
 
 	ErrMessageChanClosed = errors.New("message chan closed")
+
+	ErrLockFailed = errors.New("lock failed")
+	ErrUnlockFailed = errors.New("unlock failed")
+	ErrGetAvailableNodesFailed = errors.New("get available nodes failed")
+	ErrAllocFailed = errors.New("alloc failed")
+	ErrRollbackFailed = errors.New("rollback failed")
+	ErrSetNodeResourceFailed = errors.New("set node resource failed")
+	ErrRemoveNodeFailed = errors.New("remove node failed")
 )
 
 type detailedErr struct {

@@ -11,7 +11,8 @@ import (
 
 // DeployOptions is options for deploying
 type DeployOptions struct {
-	ResourceOpts   ResourceOptions
+	//ResourceOpts   ResourceOptions
+	ResourceOpts   ResourcePluginOptions
 	Name           string            // Name of application
 	Entrypoint     *Entrypoint       // entrypoint
 	Podname        string            // Name of pod to deploy

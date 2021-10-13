@@ -1,0 +1,135 @@
+package mocks
+
+import (
+	"context"
+	"errors"
+	"github.com/projecteru2/core/engine"
+	enginemocks "github.com/projecteru2/core/engine/mocks"
+	types2 "github.com/projecteru2/core/engine/types"
+	"github.com/projecteru2/core/lock"
+	lockmocks "github.com/projecteru2/core/lock/mocks"
+	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/store"
+	"github.com/projecteru2/core/types"
+	"github.com/projecteru2/core/utils"
+	"github.com/stretchr/testify/mock"
+	"sync"
+	"time"
+)
+
+type MockStore struct {
+	Store
+	workloads sync.Map
+	nodes     sync.Map
+	locks     sync.Map
+}
+
+var startVirtualizationCounter = 0
+
+func getEngine() engine.API {
+	m := &enginemocks.API{}
+	m.On("VirtualizationCreate", mock.Anything, mock.Anything).Return(func(ctx context.Context, config *types2.VirtualizationCreateOptions) *types2.VirtualizationCreated {
+		id := utils.RandomString(16)
+		log.Infof(ctx, "create virtualization %v, config %+v", id, config)
+		return &types2.VirtualizationCreated{
+			ID:   id,
+		}
+	}, nil)
+	m.On("VirtualizationInspect", mock.Anything, mock.Anything).Return(func(ctx context.Context, id string) *types2.VirtualizationInfo {
+		return &types2.VirtualizationInfo{
+			ID:       id,
+			Running:  true,
+		}
+	}, nil)
+	m.On("VirtualizationStart", mock.Anything, mock.Anything).Return(func(ctx context.Context, id string) error {
+		success := startVirtualizationCounter % 2 == 0
+		startVirtualizationCounter++
+		log.Infof(ctx, "start virtualization: %v", success)
+		if !success {
+			return errors.New("random failure")
+		}
+		return nil
+	})
+	m.On("VirtualizationRemove", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, ID string, volumes bool, force bool) error {
+		log.Infof(ctx, "remove virtualization %v", ID)
+		return nil
+	})
+	m.On("ImageLocalDigests", mock.Anything, mock.Anything).Return([]string{"dig"}, nil)
+	m.On("ImageRemoteDigest", mock.Anything, mock.Anything).Return("dig", nil)
+
+	return m
+}
+
+func getNodes() sync.Map {
+	m := sync.Map{}
+	m.Store("node1", &types.Node{
+		NodeMeta: types.NodeMeta{
+			Name: "node1",
+		},
+		Available: true,
+		Engine:    getEngine(),
+	})
+	m.Store("node2", &types.Node{
+		NodeMeta: types.NodeMeta{
+			Name: "node2",
+		},
+		Available: true,
+		Engine:    getEngine(),
+	})
+	m.Store("node3", &types.Node{
+		NodeMeta: types.NodeMeta{
+			Name: "node3",
+		},
+		Available: true,
+		Engine:    getEngine(),
+	})
+	return m
+}
+
+func FromTemplate() store.Store {
+	m := &MockStore{}
+	m.workloads = sync.Map{}
+	m.nodes = getNodes()
+	m.locks = sync.Map{}
+
+	m.On("GetNodesByPod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(_ context.Context, _ string, _ map[string]string, _ bool) []*types.Node {
+		res := []*types.Node{}
+		m.nodes.Range(func(key, value interface{}) bool {
+			res = append(res, value.(*types.Node))
+			return true
+		})
+		return res
+	}, nil)
+	m.On("GetNode", mock.Anything, mock.Anything).Return(func(_ context.Context, nodename string) *types.Node {
+		node, _ := m.nodes.Load(nodename)
+		return node.(*types.Node)
+	}, nil)
+	m.On("AddWorkload", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, workload *types.Workload, _ *types.Processing) error {
+		log.Infof(ctx, "add workload %v", workload)
+		m.workloads.Store(workload.ID, workload)
+		return nil
+	})
+	m.On("UpdateWorkload", mock.Anything, mock.Anything).Return(func(ctx context.Context, workload *types.Workload) error {
+		log.Infof(ctx, "update workload %v", workload)
+		m.workloads.Store(workload.ID, workload)
+		return nil
+	})
+	m.On("RemoveWorkload", mock.Anything, mock.Anything).Return(func(ctx context.Context, workload *types.Workload) error {
+		log.Infof(ctx, "delete workload %v", workload.ID)
+		m.workloads.Delete(workload.ID)
+		return nil
+	})
+	m.On("GetDeployStatus", mock.Anything, mock.Anything, mock.Anything).Return(func(_ context.Context, appname, entryname string) map[string]int {
+		res := map[string]int{}
+		m.workloads.Range(func(_, workload interface{}) bool {
+			res[workload.(*types.Workload).Nodename] += 1
+			return true
+		})
+		return res
+	}, nil)
+	m.On("CreateProcessing", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	m.On("DeleteProcessing", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	m.On("CreateLock", mock.Anything, mock.Anything).Return(func(_ string, _ time.Duration) lock.DistributedLock { return lockmocks.FromTemplate() }, nil)
+
+	return m
+}

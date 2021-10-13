@@ -250,3 +250,9 @@ func (p VolumePlan) FindAffinityPlan(req VolumeBinding) (_ VolumeBinding, _ Volu
 	found = false
 	return
 }
+
+// ResourcePluginOptions .
+type ResourcePluginOptions map[string][]string
+
+// ResourcePluginMeta .
+type ResourcePluginMeta map[string]interface{}

@@ -57,6 +57,7 @@ type Store interface {
 
 	// deploy status
 	MakeDeployStatus(ctx context.Context, appname, entryname string, sis []strategy.Info) error
+	GetDeployStatus(ctx context.Context, appname, entryname string) (map[string]int, error)
 
 	// processing status
 	CreateProcessing(ctx context.Context, process *types.Processing, count int) error

@@ -83,3 +83,18 @@ type ScheduleInfo struct {
 	VolumePlans []types.VolumePlan // {{"AUTO:/data:rw:1024": "/mnt0:/data:rw:1024"}}
 	Capacity    int                // 可以部署几个
 }
+
+// NodeResourceInfo .
+type NodeResourceInfo struct {
+	NodeName string
+	Capacity int
+
+	// Usage current resource usage
+	Usage float64
+	// Rate proportion of requested resources to total
+	Rate float64
+
+	// Weight and Count are used for weighted average
+	Weight float64
+	Count  int
+}

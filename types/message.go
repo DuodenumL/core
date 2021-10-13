@@ -77,9 +77,14 @@ type ControlWorkloadMessage struct {
 	Hook       []*bytes.Buffer
 }
 
+// RawParams .
+type RawParams map[string][]string
+
 // CreateWorkloadMessage for create message
 type CreateWorkloadMessage struct {
-	ResourceMeta
+	//ResourceMeta
+	EngineArgs   RawParams
+	ResourceArgs map[string]RawParams
 	Podname      string
 	Nodename     string
 	WorkloadID   string

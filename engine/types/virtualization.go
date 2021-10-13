@@ -1,6 +1,7 @@
 package types
 
 // VirtualizationResource define resources
+//type VirtualizationResource map[string]map[string][]string
 type VirtualizationResource struct {
 	CPU           map[string]int64 // for cpu binding
 	Quota         float64          // for cpu quota
@@ -15,19 +16,21 @@ type VirtualizationResource struct {
 // VirtualizationCreateOptions use for create virtualization target
 type VirtualizationCreateOptions struct {
 	VirtualizationResource
-	Name       string
-	User       string
-	Image      string
-	WorkingDir string
-	Stdin      bool
-	Privileged bool
-	Cmd        []string
-	Env        []string
-	DNS        []string
-	Hosts      []string
-	Publish    []string
-	Sysctl     map[string]string
-	Labels     map[string]string
+	EngineArgs   map[string][]string
+	ResourceArgs map[string]map[string][]string
+	Name         string
+	User         string
+	Image        string
+	WorkingDir   string
+	Stdin        bool
+	Privileged   bool
+	Cmd          []string
+	Env          []string
+	DNS          []string
+	Hosts        []string
+	Publish      []string
+	Sysctl       map[string]string
+	Labels       map[string]string
 
 	Debug   bool
 	Restart string
