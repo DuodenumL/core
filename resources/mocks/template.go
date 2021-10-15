@@ -57,7 +57,7 @@ func NewMockCpuPlugin() *Plugin {
 	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*types2.Workload) map[string]resources.RawParams {
 		log.Infof(ctx, "[Remap] node %v", node)
 		res := map[string]resources.RawParams{}
-		for workloadID, _ := range workloadMap {
+		for workloadID := range workloadMap {
 			res[workloadID] = map[string][]string{
 				"cpuset-cpus": {"0-65535"}, // I'm rich!
 			}

@@ -3,7 +3,6 @@ package calcalcium
 import (
 	"context"
 	"fmt"
-	
 	"testing"
 
 	enginemocks "github.com/projecteru2/core/engine/mocks"

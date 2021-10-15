@@ -2,7 +2,6 @@ package calcalcium
 
 import (
 	"context"
-	"github.com/projecteru2/core/resources"
 	"strings"
 	"testing"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/projecteru2/core/discovery"
 	"github.com/projecteru2/core/discovery/helium"
 	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/scheduler"
 	complexscheduler "github.com/projecteru2/core/scheduler/complex"
 	"github.com/projecteru2/core/source"

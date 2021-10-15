@@ -33,17 +33,17 @@ func getEngine() engine.API {
 		id := utils.RandomString(16)
 		log.Infof(ctx, "create virtualization %v, config %+v", id, config)
 		return &types2.VirtualizationCreated{
-			ID:   id,
+			ID: id,
 		}
 	}, nil)
 	m.On("VirtualizationInspect", mock.Anything, mock.Anything).Return(func(ctx context.Context, id string) *types2.VirtualizationInfo {
 		return &types2.VirtualizationInfo{
-			ID:       id,
-			Running:  true,
+			ID:      id,
+			Running: true,
 		}
 	}, nil)
 	m.On("VirtualizationStart", mock.Anything, mock.Anything).Return(func(ctx context.Context, id string) error {
-		success := startVirtualizationCounter % 2 == 0
+		success := startVirtualizationCounter%2 == 0
 		startVirtualizationCounter++
 		log.Infof(ctx, "start virtualization: %v", success)
 		if !success {

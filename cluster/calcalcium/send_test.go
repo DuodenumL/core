@@ -2,7 +2,6 @@ package calcalcium
 
 import (
 	"context"
-	
 	"io/ioutil"
 	"os"
 	"testing"

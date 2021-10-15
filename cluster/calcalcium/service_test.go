@@ -3,7 +3,6 @@ package calcalcium
 import (
 	"context"
 	"fmt"
-	
 	"sync"
 	"testing"
 	"time"

@@ -3,8 +3,6 @@ package calcalcium
 import (
 	"context"
 	"fmt"
-	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/strategy"
 	"sync"
 	"time"
 
@@ -12,6 +10,8 @@ import (
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/metrics"
+	"github.com/projecteru2/core/resources"
+	"github.com/projecteru2/core/strategy"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 	"github.com/projecteru2/core/wal"
@@ -73,7 +73,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 				}()
 				return c.withNodesLocked(ctx, opts.NodeFilter, func(ctx context.Context, nodeMap map[string]*types.Node) (err error) {
 					nodes := []string{}
-					for node, _ := range nodeMap {
+					for node := range nodeMap {
 						nodes = append(nodes, node)
 					}
 

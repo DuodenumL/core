@@ -3,7 +3,6 @@ package calcalcium
 import (
 	"bytes"
 	"context"
-	
 	"io/ioutil"
 	"testing"
 

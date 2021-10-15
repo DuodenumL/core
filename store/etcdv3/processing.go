@@ -63,7 +63,6 @@ func (m *Mercury) doLoadProcessingCount(ctx context.Context, appname, entryname 
 	return nodesCount, nil
 }
 
-
 func (m *Mercury) doLoadProcessing(ctx context.Context, appname, entryname string, strategyInfos []strategy.Info) error {
 	// 显式的加 / 保证 prefix 一致性
 	processingKey := filepath.Join(workloadProcessingPrefix, appname, entryname) + "/"
