@@ -1,8 +1,8 @@
 package types
 
 // VirtualizationResource define resources
-//type VirtualizationResource map[string]map[string][]string
 type VirtualizationResource struct {
+	EngineArgs    map[string][]string
 	CPU           map[string]int64 // for cpu binding
 	Quota         float64          // for cpu quota
 	Memory        int64            // for memory binding

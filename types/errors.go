@@ -102,6 +102,7 @@ var (
 	ErrRollbackFailed = errors.New("rollback failed")
 	ErrSetNodeResourceFailed = errors.New("set node resource failed")
 	ErrRemoveNodeFailed = errors.New("remove node failed")
+	ErrRemapFailed = errors.New("remap failed")
 )
 
 type detailedErr struct {

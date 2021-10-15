@@ -5,8 +5,10 @@ package mocks
 import (
 	context "context"
 
-	resources "github.com/projecteru2/core/resources"
+	coretypes "github.com/projecteru2/core/types"
 	mock "github.com/stretchr/testify/mock"
+
+	resources "github.com/projecteru2/core/resources"
 
 	types "github.com/projecteru2/core/resources/types"
 )
@@ -127,6 +129,29 @@ func (_m *Plugin) Name() string {
 	}
 
 	return r0
+}
+
+// Remap provides a mock function with given fields: ctx, node, workloadMap
+func (_m *Plugin) Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]resources.RawParams, error) {
+	ret := _m.Called(ctx, node, workloadMap)
+
+	var r0 map[string]resources.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]*coretypes.Workload) map[string]resources.RawParams); ok {
+		r0 = rf(ctx, node, workloadMap)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]resources.RawParams)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, map[string]*coretypes.Workload) error); ok {
+		r1 = rf(ctx, node, workloadMap)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // RemoveNode provides a mock function with given fields: ctx, node

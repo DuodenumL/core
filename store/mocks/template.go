@@ -12,6 +12,7 @@ import (
 	"github.com/projecteru2/core/store"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
+	"github.com/sanity-io/litter"
 	"github.com/stretchr/testify/mock"
 	"sync"
 	"time"
@@ -52,6 +53,10 @@ func getEngine() engine.API {
 	})
 	m.On("VirtualizationRemove", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, ID string, volumes bool, force bool) error {
 		log.Infof(ctx, "remove virtualization %v", ID)
+		return nil
+	})
+	m.On("VirtualizationUpdateResource", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, ID string, resource *types2.VirtualizationResource) error {
+		log.Infof(ctx, "update virtualization %v %v", ID, litter.Sdump(resource))
 		return nil
 	})
 	m.On("ImageLocalDigests", mock.Anything, mock.Anything).Return([]string{"dig"}, nil)
@@ -130,6 +135,14 @@ func FromTemplate() store.Store {
 	m.On("CreateProcessing", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	m.On("DeleteProcessing", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	m.On("CreateLock", mock.Anything, mock.Anything).Return(func(_ string, _ time.Duration) lock.DistributedLock { return lockmocks.FromTemplate() }, nil)
+	m.On("ListNodeWorkloads", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, labels map[string]string) []*types.Workload {
+		res := []*types.Workload{}
+		m.workloads.Range(func(_, workload interface{}) bool {
+			res = append(res, workload.(*types.Workload))
+			return true
+		})
+		return res
+	}, nil)
 
 	return m
 }

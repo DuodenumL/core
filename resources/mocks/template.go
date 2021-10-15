@@ -2,10 +2,10 @@ package mocks
 
 import (
 	"context"
-	"fmt"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/resources/types"
+	types2 "github.com/projecteru2/core/types"
 	"github.com/sanity-io/litter"
 	"github.com/stretchr/testify/mock"
 )
@@ -54,6 +54,16 @@ func NewMockCpuPlugin() *Plugin {
 	})
 
 	m.On("Name").Return("cpu-plugin")
+	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*types2.Workload) map[string]resources.RawParams {
+		log.Infof(ctx, "[Remap] node %v", node)
+		res := map[string]resources.RawParams{}
+		for workloadID, _ := range workloadMap {
+			res[workloadID] = map[string][]string{
+				"cpuset-cpus": {"0-65535"}, // I'm rich!
+			}
+		}
+		return res
+	}, nil)
 
 	return m
 }
@@ -90,7 +100,7 @@ func NewMockMemPlugin() *Plugin {
 	}, 6, nil)
 
 	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest resources.RawParams) []resources.RawParams {
-		fmt.Println(rawRequest)
+		log.Infof(ctx, "[Alloc] node %v, deploy count %v, raw request %v", node, deployCount, litter.Sdump(rawRequest))
 		return []resources.RawParams{
 			map[string][]string{
 				"mem":  {"1PB"},
@@ -110,6 +120,8 @@ func NewMockMemPlugin() *Plugin {
 	})
 
 	m.On("Name").Return("mem-plugin")
+
+	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(map[string]resources.RawParams{}, nil)
 
 	return m
 }

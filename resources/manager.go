@@ -284,6 +284,43 @@ func (pm *PluginManager) Rollback(ctx context.Context, node string, resourceArgs
 	return nil
 }
 
+// Remap remaps resource and returns engine args for workloads. format: {"workload-1": {"cpus": ["1-3"]}}
+func (pm *PluginManager) Remap(ctx context.Context, node string, workloadMap map[string]*types.Workload) (map[string]RawParams, error) {
+	resEngineArgsMap := map[string]RawParams{}
+
+	engineArgsMapChan := make(chan map[string]RawParams, len(pm.plugins))
+	errChan := make(chan error, len(pm.plugins))
+
+	// call plugins to remap
+	pm.callPlugins(func(plugin Plugin) {
+		engineArgsMap, err := plugin.Remap(ctx, node, workloadMap)
+		if err != nil {
+			log.Errorf(ctx, "[Remap] plugin %v node %v failed to remap, err: %v", plugin.Name(), node, err)
+			errChan <- err
+		} else {
+			engineArgsMapChan <- engineArgsMap
+		}
+	})
+	close(errChan)
+	close(engineArgsMapChan)
+
+	if len(errChan) > 0 {
+		return nil, types.ErrRemapFailed
+	}
+
+	// merge engine args
+	for engineArgsMap := range engineArgsMapChan {
+		for workloadID, engineArgs := range engineArgsMap {
+			if _, ok := resEngineArgsMap[workloadID]; !ok {
+				resEngineArgsMap[workloadID] = RawParams{}
+			}
+			resEngineArgsMap[workloadID] = pm.mergeEngineArgs(resEngineArgsMap[workloadID], engineArgs)
+		}
+	}
+
+	return resEngineArgsMap, nil
+}
+
 // SetNodeResource .
 func (pm *PluginManager) SetNodeResource(ctx context.Context, node string, rawRequest RawParams) error {
 	errChan := make(chan error, len(pm.plugins))

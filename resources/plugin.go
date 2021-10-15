@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/resources/types"
+	coretypes "github.com/projecteru2/core/types"
 	"os/exec"
 	"time"
 )
@@ -31,6 +32,9 @@ type Plugin interface {
 	// Alloc allocates resource, returns engine args for each workload, format: [{"cpus": ["2"]}, {"cpus": ["2"]}]
 	// also returns resource args for each workload, format: [{"cpus": ["2"]}, {"cpus": ["2"]}]
 	Alloc(ctx context.Context, node string, deployCount int, rawRequest RawParams) ([]RawParams, []RawParams, error)
+
+	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
+	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]RawParams, error)
 
 	// Rollback rollbacks resource
 	Rollback(ctx context.Context, node string, resourceArgs []RawParams) error
@@ -100,6 +104,11 @@ func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int,
 
 // Rollback .
 func (bp *BinaryPlugin) Rollback(ctx context.Context, node string, resourceArgs []RawParams) error {
+	panic("implement me")
+}
+
+// Remap .
+func (bp *BinaryPlugin) Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]RawParams, error) {
 	panic("implement me")
 }
 
