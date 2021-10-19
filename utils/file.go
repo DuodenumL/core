@@ -2,7 +2,6 @@ package utils
 
 import (
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
@@ -13,29 +12,23 @@ func isExecutable(perm fs.FileMode) bool {
 }
 
 // ListAllExecutableFiles returns all the executable files in the given path
-func ListAllExecutableFiles(path string) ([]string, error) {
-	entries, err := os.ReadDir(path)
+func ListAllExecutableFiles(basedir string) ([]string, error) {
+	files := []string{}
+	err := filepath.Walk(basedir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && path != basedir {
+			return filepath.SkipDir
+		}
+		if isExecutable(info.Mode().Perm()) {
+			files = append(files, path)
+		}
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
-	}
-
-	files := []string{}
-
-	// scan all executable files
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		perm := info.Mode().Perm()
-		if isExecutable(perm) {
-			files = append(files, filepath.Join(path, entry.Name()))
-		}
 	}
 	return files, nil
 }
