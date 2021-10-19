@@ -33,11 +33,12 @@ type Plugin interface {
 	// SetNodeResource sets the node's resource info
 	SetNodeResource(ctx context.Context, node string, rawRequest RawParams) error
 
-	// GetNodesResource returns the resource info of given nodes, format: {"node1": {"cpu": "4.00 / 2"}}
-	GetNodesResource(ctx context.Context, nodes []string) (map[string]RawParams, error)
+	// GetNodeResource returns resource info of the node, format: {"cpu": 2}
+	// also returns diffs, format: ["node.VolumeUsed != sum(workload.VolumeRequest"]
+	GetNodeResource(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload, fix bool) (RawParams, []string, error)
 
-	// Alloc allocates resource, returns engine args for each workload, format: [{"cpus": ["2"]}, {"cpus": ["2"]}]
-	// also returns resource args for each workload, format: [{"cpus": ["2"]}, {"cpus": ["2"]}]
+	// Alloc allocates resource, returns engine args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
+	// also returns resource args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
 	Alloc(ctx context.Context, node string, deployCount int, rawRequest RawParams) ([]RawParams, []RawParams, error)
 
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
@@ -99,8 +100,8 @@ func (bp *BinaryPlugin) GetAvailableNodes(ctx context.Context, rawRequest RawPar
 	panic("implement me")
 }
 
-// GetNodesResource .
-func (bp *BinaryPlugin) GetNodesResource(ctx context.Context, nodes []string) (map[string]RawParams, error) {
+// GetNodeResource .
+func (bp *BinaryPlugin) GetNodeResource(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload, fix bool) (RawParams, []string, error) {
 	panic("implement me")
 }
 

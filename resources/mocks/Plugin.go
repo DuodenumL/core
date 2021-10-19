@@ -80,27 +80,36 @@ func (_m *Plugin) GetAvailableNodes(ctx context.Context, rawRequest resources.Ra
 	return r0, r1, r2
 }
 
-// GetNodesResource provides a mock function with given fields: ctx, nodes
-func (_m *Plugin) GetNodesResource(ctx context.Context, nodes []string) (map[string]resources.RawParams, error) {
-	ret := _m.Called(ctx, nodes)
+// GetNodesResource provides a mock function with given fields: ctx, nodes, fix
+func (_m *Plugin) GetNodesResource(ctx context.Context, nodes []string, fix bool) (map[string]resources.RawParams, []string, error) {
+	ret := _m.Called(ctx, nodes, fix)
 
 	var r0 map[string]resources.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, []string) map[string]resources.RawParams); ok {
-		r0 = rf(ctx, nodes)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, bool) map[string]resources.RawParams); ok {
+		r0 = rf(ctx, nodes, fix)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]resources.RawParams)
 		}
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
-		r1 = rf(ctx, nodes)
+	var r1 []string
+	if rf, ok := ret.Get(1).(func(context.Context, []string, bool) []string); ok {
+		r1 = rf(ctx, nodes, fix)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]string)
+		}
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, []string, bool) error); ok {
+		r2 = rf(ctx, nodes, fix)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // LockNodes provides a mock function with given fields: ctx, nodes

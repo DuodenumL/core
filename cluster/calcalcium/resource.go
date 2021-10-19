@@ -2,12 +2,87 @@ package calcalcium
 
 import (
 	"context"
-
+	"fmt"
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 )
+
+// PodResource show pod resource usage
+func (c *Calcium) PodResource(ctx context.Context, podname string) (*types.PodResource, error) {
+	logger := log.WithField("Calcium", "PodResource").WithField("podname", podname)
+	nodes, err := c.ListPodNodes(ctx, podname, nil, true)
+	if err != nil {
+		return nil, logger.Err(ctx, err)
+	}
+	r := &types.PodResource{
+		Name:          podname,
+		NodesResource: []*types.NodeResource{},
+	}
+	for _, node := range nodes {
+		nodeResource, err := c.doGetNodeResource(ctx, node.Name, false)
+		if err != nil {
+			return nil, logger.Err(ctx, err)
+		}
+		r.NodesResource = append(r.NodesResource, nodeResource)
+	}
+	return r, nil
+}
+
+// NodeResource check node's workload and resource
+func (c *Calcium) NodeResource(ctx context.Context, nodename string, fix bool) (*types.NodeResource, error) {
+	logger := log.WithField("Calcium", "NodeResource").WithField("nodename", nodename).WithField("fix", fix)
+	if nodename == "" {
+		return nil, logger.Err(ctx, types.ErrEmptyNodeName)
+	}
+
+	nr, err := c.doGetNodeResource(ctx, nodename, fix)
+	if err != nil {
+		return nil, logger.Err(ctx, err)
+	}
+	for _, workload := range nr.Workloads {
+		if _, err := workload.Inspect(ctx); err != nil { // 用于探测节点上容器是否存在
+			nr.Diffs = append(nr.Diffs, fmt.Sprintf("workload %s inspect failed %v \n", workload.ID, err))
+			continue
+		}
+	}
+	return nr, logger.Err(ctx, err)
+}
+
+func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bool) (*types.NodeResource, error) {
+	var nr *types.NodeResource
+	return nr, c.withNodeLocked(ctx, nodename, func(ctx context.Context, node *types.Node) error {
+		return c.resource.WithNodesLocked(ctx, []string{nodename}, func(ctx context.Context) error {
+			workloads, err := c.ListNodeWorkloads(ctx, nodename, nil)
+			if err != nil {
+				log.Errorf(ctx, "[doGetNodeResource] failed to list node workloads, node %v, err: %v", nodename, err)
+				return err
+			}
+			workloadMap := map[string]*types.Workload{}
+			for _, workload := range workloads {
+				workloadMap[workload.ID] = workload
+			}
+
+			resourceArgs, diffs, err := c.resource.GetNodeResource(ctx, nodename, workloadMap, fix)
+			if err != nil {
+				log.Errorf(ctx, "[doGetNodeResource] failed to get node resource, node %v, err: %v", nodename, err)
+				return err
+			}
+
+			nr = &types.NodeResource{
+				Name:         nodename,
+				ResourceArgs: map[string]types.RawParams{},
+				Diffs:        diffs,
+			}
+
+			for plugin, args := range resourceArgs {
+				nr.ResourceArgs[plugin] = types.RawParams(args)
+			}
+			return nil
+		})
+	})
+}
 
 type remapMsg struct {
 	id  string

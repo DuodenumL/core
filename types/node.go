@@ -263,6 +263,7 @@ func (n *Node) Metrics() *NodeMetrics {
 // NodeResource for node check
 type NodeResource struct {
 	Name              string
+	ResourceArgs      map[string]RawParams
 	CPU               CPUMap
 	MemCap            int64
 	StorageCap        int64

@@ -35,14 +35,6 @@ type Calcium struct {
 	identifier string
 }
 
-func (c *Calcium) PodResource(ctx context.Context, podname string) (*types.PodResource, error) {
-	panic("implement me")
-}
-
-func (c *Calcium) NodeResource(ctx context.Context, nodename string, fix bool) (*types.NodeResource, error) {
-	panic("implement me")
-}
-
 func (c *Calcium) CalculateCapacity(ctx context.Context, options *types.DeployOptions) (*types.CapacityMessage, error) {
 	panic("implement me")
 }

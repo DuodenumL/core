@@ -255,9 +255,37 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 	return resEngineArgs, resResourceArgs, nil
 }
 
-// GetNodesResource .
-func (pm *PluginManager) GetNodesResource(ctx context.Context, nodes []string) (map[string]map[string]string, error) {
-	panic("implement me")
+// GetNodeResource .
+func (pm *PluginManager) GetNodeResource(ctx context.Context, node string, workloadMap map[string]*types.Workload, fix bool) (map[string]RawParams, []string, error) {
+	resNodeResource := map[string]RawParams{}
+	resDiffs := []string{}
+
+	diffChan := make(chan []string, len(pm.plugins))
+	errChan := make(chan error, len(pm.plugins))
+
+	pm.callPlugins(func(plugin Plugin) {
+		nodeResource, diffs, err := plugin.GetNodeResource(ctx, node, workloadMap, fix)
+		if err != nil {
+			log.Errorf(ctx, "[GetNodeResource] plugin %v failed to get node resource of node %v, err: %v", plugin.Name(), node, err)
+			errChan <- err
+		} else {
+			diffChan <- diffs
+			resNodeResource[plugin.Name()] = nodeResource
+		}
+	})
+
+	close(errChan)
+	close(diffChan)
+
+	if len(errChan) > 0 {
+		return nil, nil, types.ErrGetNodeResourceFailed
+	}
+
+	for diffs := range diffChan {
+		resDiffs = append(resDiffs, diffs...)
+	}
+
+	return resNodeResource, resDiffs, nil
 }
 
 // UpdateNodeResource .
