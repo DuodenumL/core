@@ -22,6 +22,7 @@ func TestCreateWorkloadWithResourcePlugin(t *testing.T) {
 	defer cancel()
 	c.resource = resources.NewPluginManager(ctx, c.config)
 	c.resource.AddPlugins(mocks.NewMockCpuPlugin(), mocks.NewMockMemPlugin())
+
 	opts := &types.DeployOptions{
 		Name:    "deployname",
 		Podname: "somepod",
@@ -30,9 +31,9 @@ func TestCreateWorkloadWithResourcePlugin(t *testing.T) {
 		Entrypoint: &types.Entrypoint{
 			Name: "some-nice-entrypoint",
 		},
-		ResourceOpts: map[string][]string{
-			"cpu": {"1"},
-			"mem": {"100000PB"},
+		ResourceOpts: map[string]interface{}{
+			"cpu": 1.2,
+			"mem": "100000PB",
 		},
 		DeployStrategy: strategy.Auto,
 	}
@@ -41,5 +42,8 @@ func TestCreateWorkloadWithResourcePlugin(t *testing.T) {
 	assert.Nil(t, err)
 	for msg := range ch {
 		log.Infof(ctx, "create workload msg: %+v", litter.Sdump(msg))
+		if msg.Error != nil {
+			assert.Regexp(t, "random failure", msg.Error)
+		}
 	}
 }

@@ -2,7 +2,7 @@ package types
 
 // VirtualizationResource define resources
 type VirtualizationResource struct {
-	EngineArgs    map[string][]string
+	EngineArgs    map[string]interface{}
 	CPU           map[string]int64 // for cpu binding
 	Quota         float64          // for cpu quota
 	Memory        int64            // for memory binding
@@ -16,8 +16,8 @@ type VirtualizationResource struct {
 // VirtualizationCreateOptions use for create virtualization target
 type VirtualizationCreateOptions struct {
 	VirtualizationResource
-	EngineArgs   map[string][]string
-	ResourceArgs map[string]map[string][]string
+	EngineArgs   map[string]interface{}
+	ResourceArgs map[string]map[string]interface{}
 	Name         string
 	User         string
 	Image        string

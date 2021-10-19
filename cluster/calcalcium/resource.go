@@ -33,13 +33,15 @@ func (c *Calcium) remapResource(ctx context.Context, node *types.Node) (ch chan 
 	}
 
 	ch = make(chan *remapMsg, len(engineArgsMap))
-
-	for workloadID, engineArgs := range engineArgsMap {
-		ch <- &remapMsg{
-			id:  workloadID,
-			err: node.Engine.VirtualizationUpdateResource(ctx, workloadID, &enginetypes.VirtualizationResource{EngineArgs: engineArgs}),
+	go func() {
+		defer close(ch)
+		for workloadID, engineArgs := range engineArgsMap {
+			ch <- &remapMsg{
+				id:  workloadID,
+				err: node.Engine.VirtualizationUpdateResource(ctx, workloadID, &enginetypes.VirtualizationResource{EngineArgs: engineArgs}),
+			}
 		}
-	}
+	}()
 
 	return ch, nil
 }
@@ -51,6 +53,7 @@ func (c *Calcium) doRemapResourceAndLog(ctx context.Context, logger log.Fields, 
 	logger = logger.WithField("Calcium", "doRemapResourceAndLog").WithField("nodename", node.Name)
 	if ch, err := c.remapResource(ctx, node); logger.Err(ctx, err) == nil {
 		for msg := range ch {
+			log.Infof(ctx, "[doRemapResourceAndLog] id %v", msg.id)
 			logger.WithField("id", msg.id).Err(ctx, msg.err) // nolint:errcheck
 		}
 	}

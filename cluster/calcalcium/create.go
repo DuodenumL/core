@@ -138,7 +138,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 							for _, idx := range rollbackIndices {
 								resourceArgsToRollback = append(resourceArgsToRollback, resourceArgsMap[nodename][idx])
 							}
-							return c.resource.Rollback(ctx, nodename, resourceArgsToRollback)
+							return c.resource.UpdateNodeResource(ctx, nodename, resourceArgsToRollback, resources.Incr)
 						})
 					}); e != nil {
 						err = logger.Err(ctx, e)
@@ -276,7 +276,7 @@ func (c *Calcium) doDeployOneWorkload(
 	decrProcessing bool,
 ) (err error) {
 	workload := &types.Workload{
-		ResourceArgs: map[string]map[string][]string{},
+		ResourceArgs: map[string]map[string]interface{}{},
 		EngineArgs:   msg.EngineArgs,
 		Name:         config.Name,
 		Labels:       config.Labels,
@@ -429,7 +429,7 @@ func (c *Calcium) doMakeWorkloadOptions(ctx context.Context, no int, msg *types.
 	config.Networks = opts.Networks
 
 	// resource args
-	config.ResourceArgs = map[string]map[string][]string{}
+	config.ResourceArgs = map[string]map[string]interface{}{}
 	for k, v := range msg.ResourceArgs {
 		config.ResourceArgs[k] = v
 	}

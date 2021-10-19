@@ -168,20 +168,6 @@ func (_m *Plugin) RemoveNode(ctx context.Context, node string) error {
 	return r0
 }
 
-// Rollback provides a mock function with given fields: ctx, node, resourceArgs
-func (_m *Plugin) Rollback(ctx context.Context, node string, resourceArgs []resources.RawParams) error {
-	ret := _m.Called(ctx, node, resourceArgs)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []resources.RawParams) error); ok {
-		r0 = rf(ctx, node, resourceArgs)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // SetNodeResource provides a mock function with given fields: ctx, node, rawRequest
 func (_m *Plugin) SetNodeResource(ctx context.Context, node string, rawRequest resources.RawParams) error {
 	ret := _m.Called(ctx, node, rawRequest)
@@ -203,6 +189,20 @@ func (_m *Plugin) UnlockNodes(ctx context.Context, nodes []string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, []string) error); ok {
 		r0 = rf(ctx, nodes)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateNodeResource provides a mock function with given fields: ctx, node, resourceArgs, direction
+func (_m *Plugin) UpdateNodeResource(ctx context.Context, node string, resourceArgs []resources.RawParams, direction bool) error {
+	ret := _m.Called(ctx, node, resourceArgs, direction)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []resources.RawParams, bool) error); ok {
+		r0 = rf(ctx, node, resourceArgs, direction)
 	} else {
 		r0 = ret.Error(0)
 	}

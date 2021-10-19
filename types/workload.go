@@ -36,21 +36,21 @@ type LabelMeta struct {
 // if you wanna get realtime information, use Inspect method
 type Workload struct {
 	//ResourceMeta
-	ResourceArgs map[string]map[string][]string `json:"resource_args"`
-	EngineArgs   map[string][]string            `json:"engine_args"`
-	ID           string                         `json:"id"`
-	Name         string                         `json:"name"`
-	Podname      string                         `json:"podname"`
-	Nodename     string                         `json:"nodename"`
-	Hook         *Hook                          `json:"hook"`
-	Privileged   bool                           `json:"privileged"`
-	User         string                         `json:"user"`
-	Env          []string                       `json:"env"`
-	Image        string                         `json:"image"`
-	Labels       map[string]string              `json:"labels"`
-	CreateTime   int64                          `json:"create_time"`
-	StatusMeta   *StatusMeta                    `json:"-"`
-	Engine       engine.API                     `json:"-"`
+	ResourceArgs ResourcePluginMeta `json:"resource_args"`
+	EngineArgs   map[string]interface{}            `json:"engine_args"`
+	ID           string                            `json:"id"`
+	Name         string                            `json:"name"`
+	Podname      string                            `json:"podname"`
+	Nodename     string                            `json:"nodename"`
+	Hook         *Hook                             `json:"hook"`
+	Privileged   bool                              `json:"privileged"`
+	User         string                            `json:"user"`
+	Env          []string                          `json:"env"`
+	Image        string                            `json:"image"`
+	Labels       map[string]string                 `json:"labels"`
+	CreateTime   int64                             `json:"create_time"`
+	StatusMeta   *StatusMeta                       `json:"-"`
+	Engine       engine.API                        `json:"-"`
 }
 
 // Inspect a workload

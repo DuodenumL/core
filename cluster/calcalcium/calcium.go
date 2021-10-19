@@ -35,6 +35,46 @@ type Calcium struct {
 	identifier string
 }
 
+func (c *Calcium) PodResource(ctx context.Context, podname string) (*types.PodResource, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) NodeResource(ctx context.Context, nodename string, fix bool) (*types.NodeResource, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) CalculateCapacity(ctx context.Context, options *types.DeployOptions) (*types.CapacityMessage, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) CacheImage(ctx context.Context, opts *types.ImageOptions) (chan *types.CacheImageMessage, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) RemoveImage(ctx context.Context, opts *types.ImageOptions) (chan *types.RemoveImageMessage, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) DissociateWorkload(ctx context.Context, ids []string) (chan *types.DissociateWorkloadMessage, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) ExecuteWorkload(ctx context.Context, opts *types.ExecuteWorkloadOptions, inCh <-chan []byte) chan *types.AttachWorkloadMessage {
+	panic("implement me")
+}
+
+func (c *Calcium) ReallocResource(ctx context.Context, opts *types.ReallocOptions) error {
+	panic("implement me")
+}
+
+func (c *Calcium) LogStream(ctx context.Context, opts *types.LogStreamOptions) (chan *types.LogStreamMessage, error) {
+	panic("implement me")
+}
+
+func (c *Calcium) RunAndWait(ctx context.Context, opts *types.DeployOptions, inCh <-chan []byte) ([]string, <-chan *types.AttachWorkloadMessage, error) {
+	panic("implement me")
+}
+
 // New returns a new cluster config
 func New(config types.Config, t *testing.T) (*Calcium, error) {
 	logger := log.WithField("Calcium", "New").WithField("config", config)

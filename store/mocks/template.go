@@ -43,12 +43,16 @@ func getEngine() engine.API {
 		}
 	}, nil)
 	m.On("VirtualizationStart", mock.Anything, mock.Anything).Return(func(ctx context.Context, id string) error {
-		success := startVirtualizationCounter%2 == 0
+		success := startVirtualizationCounter != 1
 		startVirtualizationCounter++
 		log.Infof(ctx, "start virtualization: %v", success)
 		if !success {
 			return errors.New("random failure")
 		}
+		return nil
+	})
+	m.On("VirtualizationStop", mock.Anything, mock.Anything, mock.Anything).Return(func (ctx context.Context, ID string, _ time.Duration) error {
+		log.Infof(ctx, "stop virtualization %v", ID)
 		return nil
 	})
 	m.On("VirtualizationRemove", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, ID string, volumes bool, force bool) error {
@@ -119,6 +123,23 @@ func FromTemplate() store.Store {
 		m.workloads.Store(workload.ID, workload)
 		return nil
 	})
+	m.On("ListWorkloads", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, appname string, entrypoint string, nodename string, limit int64, labels map[string]string) []*types.Workload {
+		res := []*types.Workload{}
+		m.workloads.Range(func(_, v interface{}) bool {
+			res = append(res, v.(*types.Workload))
+			return true
+		})
+		return res
+	}, nil)
+	m.On("GetWorkloads", mock.Anything, mock.Anything).Return(func(ctx context.Context, ids []string) []*types.Workload {
+		res := []*types.Workload{}
+		for _, id := range ids {
+			if v, ok := m.workloads.Load(id); ok {
+				res = append(res, v.(*types.Workload))
+			}
+		}
+		return res
+	}, nil)
 	m.On("RemoveWorkload", mock.Anything, mock.Anything).Return(func(ctx context.Context, workload *types.Workload) error {
 		log.Infof(ctx, "delete workload %v", workload.ID)
 		m.workloads.Delete(workload.ID)

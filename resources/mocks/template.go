@@ -36,20 +36,20 @@ func NewMockCpuPlugin() *Plugin {
 	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest resources.RawParams) []resources.RawParams {
 		log.Infof(ctx, "[Alloc] alloc, node %s, deploy count %v, request %+v", node, deployCount, rawRequest)
 		return []resources.RawParams{
-			map[string][]string{
-				"cpu":  {"1"},
-				"file": {"cpu"},
+			map[string]interface{}{
+				"cpu":  1.2,
+				"file": []string{"cpu"},
 			},
 		}
 	}, []resources.RawParams{
-		map[string][]string{
-			"cpu":  {"1"},
-			"file": {"cpu"},
+		map[string]interface{}{
+			"cpu":  1.2,
+			"file": []string{"cpu"},
 		},
 	}, nil)
 
-	m.On("Rollback", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, resourceArgs []resources.RawParams) error {
-		log.Infof(ctx, "[Rollback] cpu-plugin rollback, node %s, resource args %+v", node, litter.Sdump(resourceArgs))
+	m.On("UpdateNodeResource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, resourceArgs []resources.RawParams, direction bool) error {
+		log.Infof(ctx, "[UpdateNodeResource] cpu-plugin UpdateNodeResource, incr %v, node %s, resource args %+v", direction, node, litter.Sdump(resourceArgs))
 		return nil
 	})
 
@@ -58,8 +58,8 @@ func NewMockCpuPlugin() *Plugin {
 		log.Infof(ctx, "[Remap] node %v", node)
 		res := map[string]resources.RawParams{}
 		for workloadID := range workloadMap {
-			res[workloadID] = map[string][]string{
-				"cpuset-cpus": {"0-65535"}, // I'm rich!
+			res[workloadID] = map[string]interface{}{
+				"cpuset-cpus": []string{"0-65535"}, // I'm rich!
 			}
 		}
 		return res
@@ -102,20 +102,20 @@ func NewMockMemPlugin() *Plugin {
 	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest resources.RawParams) []resources.RawParams {
 		log.Infof(ctx, "[Alloc] node %v, deploy count %v, raw request %v", node, deployCount, litter.Sdump(rawRequest))
 		return []resources.RawParams{
-			map[string][]string{
-				"mem":  {"1PB"},
-				"file": {"mem"},
+			map[string]interface{}{
+				"mem":  "1PB",
+				"file": []string{"mem"},
 			},
 		}
 	}, []resources.RawParams{
-		map[string][]string{
-			"mem":  {"1PB"},
-			"file": {"mem"},
+		map[string]interface{}{
+			"mem":  "1PB",
+			"file": []string{"mem"},
 		},
 	}, nil)
 
-	m.On("Rollback", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, resourceArgs []resources.RawParams) error {
-		log.Infof(ctx, "[Rollback] mem-plugin rollback, node %s, resource args %+v", node, litter.Sdump(resourceArgs))
+	m.On("UpdateNodeResource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, resourceArgs []resources.RawParams, direction bool) error {
+		log.Infof(ctx, "[UpdateNodeResource] mem-plugin UpdateNodeResource, incr %v, node %s, resource args %+v", direction, node, litter.Sdump(resourceArgs))
 		return nil
 	})
 

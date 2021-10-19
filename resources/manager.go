@@ -180,20 +180,28 @@ func (pm *PluginManager) GetAvailableNodes(ctx context.Context, rawRequests RawP
 	return res, total, nil
 }
 
-// mergeEngineArgs e.g. {"file": ["f1", "f2"]} + {"file": ["f3"], "cpu": ["1"]} => {"file": ["f1", "f2", "f3"], "cpu": ["1"]}
-func (pm *PluginManager) mergeEngineArgs(m1 RawParams, m2 RawParams) RawParams {
+// mergeEngineArgs e.g. {"file": ["/bin/sh:/bin/sh"], "cpu": 1.2, "cpu-bind": true} + {"file": ["/bin/ls:/bin/ls"], "mem": "1PB"}
+// => {"file": ["/bin/sh:/bin/sh", "/bin/ls:/bin/ls"], "cpu": 1.2, "cpu-bind": true, "mem": "1PB"}
+func (pm *PluginManager) mergeEngineArgs(ctx context.Context, m1 RawParams, m2 RawParams) (RawParams, error) {
 	res := RawParams{}
 	for key, value := range m1 {
 		res[key] = value
 	}
 	for key, value := range m2 {
 		if _, ok := res[key]; ok {
-			res[key] = append(res[key], value...)
+			// only two string slices can be merged
+			_, ok1 := res[key].([]string)
+			_, ok2 := value.([]string)
+			if !ok1 || !ok2 {
+				log.Errorf(ctx, "[mergeEngineArgs] only two string slices can be merged! error key %v, m1[key] = %v, m2[key] = %v", key, m1[key], m2[key])
+				return nil, types.ErrInvalidEngineArgs
+			}
+			res[key] = append(res[key].([]string), value.([]string)...)
 		} else {
 			res[key] = value
 		}
 	}
-	return res
+	return res, nil
 }
 
 // Alloc .
@@ -233,9 +241,14 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 		return nil, nil, types.ErrAllocFailed
 	}
 
+	var err error
 	for engineArgs := range engineArgsChan {
-		for index, params := range engineArgs {
-			resEngineArgs[index] = pm.mergeEngineArgs(resEngineArgs[index], params)
+		for index, args := range engineArgs {
+			resEngineArgs[index], err = pm.mergeEngineArgs(ctx, resEngineArgs[index], args)
+			if err != nil {
+				log.Errorf(ctx, "[Alloc] invalid engine args")
+				return nil, nil, err
+			}
 		}
 	}
 
@@ -247,10 +260,10 @@ func (pm *PluginManager) GetNodesResource(ctx context.Context, nodes []string) (
 	panic("implement me")
 }
 
-// Rollback .
-func (pm *PluginManager) Rollback(ctx context.Context, node string, resourceArgs []map[string]RawParams) error {
+// UpdateNodeResource .
+func (pm *PluginManager) UpdateNodeResource(ctx context.Context, node string, resourceArgs []map[string]RawParams, direction bool) error {
 	// convert []map[plugin]resourceArgs to map[plugin][]resourceArgs
-	// [{"cpu-plugin": {"cpu": ["1"]}}, {"cpu-plugin": {"cpu": ["1"]}}] -> {"cpu-plugin": [{"cpu": ["1"]}, {"cpu": ["1"]}]}
+	// [{"cpu-plugin": {"cpu": 1}}, {"cpu-plugin": {"cpu": 1}}] -> {"cpu-plugin": [{"cpu": 1}, {"cpu": 1}]}
 	rollbackArgsMap := map[string][]RawParams{}
 	for _, workloadResourceArgs := range resourceArgs {
 		for plugin, rawParams := range workloadResourceArgs {
@@ -263,14 +276,14 @@ func (pm *PluginManager) Rollback(ctx context.Context, node string, resourceArgs
 
 	errChan := make(chan error, len(pm.plugins))
 
-	// call plugins to rollback
+	// call plugins to return resources
 	pm.callPlugins(func(plugin Plugin) {
 		rollbackArgs, ok := rollbackArgsMap[plugin.Name()]
 		if !ok {
 			return
 		}
 
-		if err := plugin.Rollback(ctx, node, rollbackArgs); err != nil {
+		if err := plugin.UpdateNodeResource(ctx, node, rollbackArgs, direction); err != nil {
 			log.Errorf(ctx, "[Rollback] node %v plugin %v failed to rollback %v, err: %v", node, plugin.Name(), rollbackArgs, err)
 			errChan <- err
 		}
@@ -310,12 +323,17 @@ func (pm *PluginManager) Remap(ctx context.Context, node string, workloadMap map
 	}
 
 	// merge engine args
+	var err error
 	for engineArgsMap := range engineArgsMapChan {
 		for workloadID, engineArgs := range engineArgsMap {
 			if _, ok := resEngineArgsMap[workloadID]; !ok {
 				resEngineArgsMap[workloadID] = RawParams{}
 			}
-			resEngineArgsMap[workloadID] = pm.mergeEngineArgs(resEngineArgsMap[workloadID], engineArgs)
+			resEngineArgsMap[workloadID], err = pm.mergeEngineArgs(ctx, resEngineArgsMap[workloadID], engineArgs)
+			if err != nil {
+				log.Errorf(ctx, "[Remap] invalid engine args")
+				return nil, err
+			}
 		}
 	}
 

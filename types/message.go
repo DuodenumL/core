@@ -78,7 +78,7 @@ type ControlWorkloadMessage struct {
 }
 
 // RawParams .
-type RawParams map[string][]string
+type RawParams map[string]interface{}
 
 // CreateWorkloadMessage for create message
 type CreateWorkloadMessage struct {

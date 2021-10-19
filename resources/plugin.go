@@ -11,7 +11,13 @@ import (
 	coretypes "github.com/projecteru2/core/types"
 )
 
-type RawParams map[string][]string
+type RawParams map[string]interface{}
+
+// Incr increase resource
+const Incr = true
+
+// Decr decrease resource
+const Decr = false
 
 // Plugin resource plugin
 type Plugin interface {
@@ -37,8 +43,8 @@ type Plugin interface {
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
 	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]RawParams, error)
 
-	// Rollback rollbacks resource
-	Rollback(ctx context.Context, node string, resourceArgs []RawParams) error
+	// UpdateNodeResource rollbacks resource
+	UpdateNodeResource(ctx context.Context, node string, resourceArgs []RawParams, direction bool) error
 
 	// RemoveNode removes node
 	RemoveNode(ctx context.Context, node string) error
@@ -103,8 +109,8 @@ func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int,
 	panic("implement me")
 }
 
-// Rollback .
-func (bp *BinaryPlugin) Rollback(ctx context.Context, node string, resourceArgs []RawParams) error {
+// UpdateNodeResource .
+func (bp *BinaryPlugin) UpdateNodeResource(ctx context.Context, node string, resourceArgs []RawParams, direction bool) error {
 	panic("implement me")
 }
 
