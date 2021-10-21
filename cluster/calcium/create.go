@@ -2,7 +2,6 @@ package calcium
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -11,7 +10,7 @@ import (
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/metrics"
-	resourcetypes "github.com/projecteru2/core/resources/types"
+	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 	"github.com/projecteru2/core/wal"
@@ -37,16 +36,14 @@ func (c *Calcium) CreateWorkload(ctx context.Context, opts *types.DeployOptions)
 	return c.doCreateWorkloads(ctx, opts), nil
 }
 
-// transaction: resource metadata consistency
 func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptions) chan *types.CreateWorkloadMessage {
 	logger := log.WithField("Calcium", "doCreateWorkloads").WithField("opts", opts)
 	ch := make(chan *types.CreateWorkloadMessage)
-	// RFC 计算当前 app 部署情况的时候需要保证同一时间只有这个 app 的这个 entrypoint 在跑
-	// 因此需要在这里加个全局锁，直到部署完毕才释放
-	// 通过 Processing 状态跟踪达成 18 Oct, 2018
-
+	// map[node][]engineArgs
+	engineArgsMap := map[string][]resources.RawParams{}
+	// map[node][]map[plugin]resourceArgs
+	resourceArgsMap := map[string][]map[string]resources.RawParams{}
 	var (
-		plans       []resourcetypes.ResourcePlans
 		deployMap   map[string]int
 		rollbackMap map[string][]int
 	)
@@ -56,7 +53,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 			cctx, cancel := context.WithTimeout(utils.InheritTracingInfo(ctx, context.TODO()), c.config.GlobalTimeout)
 			for nodename := range deployMap {
 				if e := c.store.DeleteProcessing(cctx, opts.GetProcessing(nodename)); e != nil {
-					logger.Errorf(ctx, "[Calcium.doCreateWorkloads] delete processing failed for %s: %+v", nodename, e)
+					logger.Errorf(ctx, "[doCreateWorkloads] delete processing failed for %s: %+v", nodename, e)
 				}
 			}
 			close(ch)
@@ -74,29 +71,30 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 					}
 				}()
 				return c.withNodesLocked(ctx, opts.NodeFilter, func(ctx context.Context, nodeMap map[string]*types.Node) (err error) {
-					// calculate plans
-					if plans, deployMap, err = c.doAllocResource(ctx, nodeMap, opts); err != nil {
-						return err
+					nodes := []string{}
+					for node := range nodeMap {
+						nodes = append(nodes, node)
 					}
 
-					// commit changes
-					nodes := []*types.Node{}
-					for nodename, deploy := range deployMap {
-						for _, plan := range plans {
-							plan.ApplyChangesOnNode(nodeMap[nodename], utils.Range(deploy)...)
+					return c.resource.WithNodesLocked(ctx, nodes, func(ctx context.Context) error {
+						deployMap, err = c.doGetDeployMap(ctx, nodes, opts)
+
+						// commit changes
+						for node, deploy := range deployMap {
+							engineArgsMap[node], resourceArgsMap[node], err = c.resource.Alloc(ctx, node, deploy, resources.RawParams(opts.ResourceOpts))
+							if err = c.store.CreateProcessing(ctx, opts.GetProcessing(node), deploy); err != nil {
+								return errors.WithStack(err)
+							}
 						}
-						nodes = append(nodes, nodeMap[nodename])
-						if err = c.store.CreateProcessing(ctx, opts.GetProcessing(nodename), deploy); err != nil {
-							return errors.WithStack(err)
-						}
-					}
-					return errors.WithStack(c.store.UpdateNodes(ctx, nodes...))
+
+						return err
+					})
 				})
 			},
 
 			// then: deploy workloads
 			func(ctx context.Context) (err error) {
-				rollbackMap, err = c.doDeployWorkloads(ctx, ch, opts, plans, deployMap)
+				rollbackMap, err = c.doDeployWorkloads(ctx, ch, opts, engineArgsMap, resourceArgsMap, deployMap)
 				return err
 			},
 
@@ -107,10 +105,13 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 				}
 				for nodename, rollbackIndices := range rollbackMap {
 					if e := c.withNodeLocked(ctx, nodename, func(ctx context.Context, node *types.Node) error {
-						for _, plan := range plans {
-							plan.RollbackChangesOnNode(node, rollbackIndices...) // nolint:scopelint
-						}
-						return errors.WithStack(c.store.UpdateNodes(ctx, node))
+						return c.resource.WithNodesLocked(ctx, []string{nodename}, func(ctx context.Context) error {
+							resourceArgsToRollback := []map[string]resources.RawParams{}
+							for _, idx := range rollbackIndices {
+								resourceArgsToRollback = append(resourceArgsToRollback, resourceArgsMap[nodename][idx])
+							}
+							return c.resource.UpdateNodeResource(ctx, nodename, resourceArgsToRollback, resources.Incr)
+						})
 					}); e != nil {
 						err = logger.Err(ctx, e)
 					}
@@ -125,7 +126,13 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 	return ch
 }
 
-func (c *Calcium) doDeployWorkloads(ctx context.Context, ch chan *types.CreateWorkloadMessage, opts *types.DeployOptions, plans []resourcetypes.ResourcePlans, deployMap map[string]int) (_ map[string][]int, err error) {
+func (c *Calcium) doDeployWorkloads(ctx context.Context,
+	ch chan *types.CreateWorkloadMessage,
+	opts *types.DeployOptions,
+	engineArgsMap map[string][]resources.RawParams,
+	resourceArgsMap map[string][]map[string]resources.RawParams,
+	deployMap map[string]int) (_ map[string][]int, err error) {
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(deployMap))
 	syncRollbackMap := sync.Map{}
@@ -141,7 +148,7 @@ func (c *Calcium) doDeployWorkloads(ctx context.Context, ch chan *types.CreateWo
 		utils.SentryGo(func(nodename string, deploy, seq int) func() {
 			return func() {
 				defer wg.Done()
-				if indices, err := c.doDeployWorkloadsOnNode(ctx, ch, nodename, opts, deploy, plans, seq); err != nil {
+				if indices, err := c.doDeployWorkloadsOnNode(ctx, ch, nodename, opts, deploy, engineArgsMap[nodename], resourceArgsMap[nodename], seq); err != nil {
 					syncRollbackMap.Store(nodename, indices)
 				}
 			}
@@ -157,7 +164,7 @@ func (c *Calcium) doDeployWorkloads(ctx context.Context, ch chan *types.CreateWo
 		rollbackMap[nodename] = indices
 		return true
 	})
-	log.Debugf(ctx, "[Calcium.doDeployWorkloads] rollbackMap: %+v", rollbackMap)
+	log.Debugf(ctx, "[doDeployWorkloads] rollbackMap: %+v", rollbackMap)
 	if len(rollbackMap) != 0 {
 		err = types.ErrRollbackMapIsNotEmpty
 	}
@@ -165,8 +172,8 @@ func (c *Calcium) doDeployWorkloads(ctx context.Context, ch chan *types.CreateWo
 }
 
 // deploy scheduled workloads on one node
-func (c *Calcium) doDeployWorkloadsOnNode(ctx context.Context, ch chan *types.CreateWorkloadMessage, nodename string, opts *types.DeployOptions, deploy int, plans []resourcetypes.ResourcePlans, seq int) (indices []int, err error) {
-	logger := log.WithField("Calcium", "doDeployWorkloadsOnNode").WithField("nodename", nodename).WithField("opts", opts).WithField("deploy", deploy).WithField("plans", plans).WithField("seq", seq)
+func (c *Calcium) doDeployWorkloadsOnNode(ctx context.Context, ch chan *types.CreateWorkloadMessage, nodename string, opts *types.DeployOptions, deploy int, engineArgs []resources.RawParams, resourceArgs []map[string]resources.RawParams, seq int) (indices []int, err error) {
+	logger := log.WithField("Calcium", "doDeployWorkloadsOnNode").WithField("nodename", nodename).WithField("opts", opts).WithField("deploy", deploy).WithField("engineArgs", engineArgs).WithField("resourceArgs", resourceArgs).WithField("seq", seq)
 	node, err := c.doGetAndPrepareNode(ctx, nodename, opts.Image)
 	if err != nil {
 		for i := 0; i < deploy; i++ {
@@ -197,18 +204,12 @@ func (c *Calcium) doDeployWorkloadsOnNode(ctx context.Context, ch chan *types.Cr
 					ch <- createMsg
 				}()
 
-				r := &types.ResourceMeta{}
-				o := resourcetypes.DispenseOptions{
-					Node:  node,
-					Index: idx,
-				}
-				for _, plan := range plans {
-					if r, e = plan.Dispense(o, r); e != nil {
-						return
-					}
+				createMsg.EngineArgs = types.RawParams(engineArgs[idx])
+				createMsg.ResourceArgs = map[string]types.RawParams{}
+				for k, v := range resourceArgs[idx] {
+					createMsg.ResourceArgs[k] = types.RawParams(v)
 				}
 
-				createMsg.ResourceMeta = *r
 				createOpts := c.doMakeWorkloadOptions(ctx, seq+idx, createMsg, opts, node)
 				e = c.doDeployOneWorkload(ctx, node, opts, createMsg, createOpts, true)
 			}
@@ -247,31 +248,26 @@ func (c *Calcium) doDeployOneWorkload(
 	decrProcessing bool,
 ) (err error) {
 	workload := &types.Workload{
-		ResourceMeta: types.ResourceMeta{
-			CPU:               msg.CPU,
-			CPUQuotaRequest:   msg.CPUQuotaRequest,
-			CPUQuotaLimit:     msg.CPUQuotaLimit,
-			MemoryRequest:     msg.MemoryRequest,
-			MemoryLimit:       msg.MemoryLimit,
-			StorageRequest:    msg.StorageRequest,
-			StorageLimit:      msg.StorageLimit,
-			VolumeRequest:     msg.VolumeRequest,
-			VolumeLimit:       msg.VolumeLimit,
-			VolumePlanRequest: msg.VolumePlanRequest,
-			VolumePlanLimit:   msg.VolumePlanLimit,
-		},
-		Name:       config.Name,
-		Labels:     config.Labels,
-		Podname:    opts.Podname,
-		Nodename:   node.Name,
-		Hook:       opts.Entrypoint.Hook,
-		Privileged: opts.Entrypoint.Privileged,
-		Engine:     node.Engine,
-		Image:      opts.Image,
-		Env:        opts.Env,
-		User:       opts.User,
-		CreateTime: time.Now().Unix(),
+		ResourceArgs: map[string]map[string]interface{}{},
+		EngineArgs:   msg.EngineArgs,
+		Name:         config.Name,
+		Labels:       config.Labels,
+		Podname:      opts.Podname,
+		Nodename:     node.Name,
+		Hook:         opts.Entrypoint.Hook,
+		Privileged:   opts.Entrypoint.Privileged,
+		Engine:       node.Engine,
+		Image:        opts.Image,
+		Env:          opts.Env,
+		User:         opts.User,
+		CreateTime:   time.Now().Unix(),
 	}
+
+	// copy resource args
+	for k, v := range msg.ResourceArgs {
+		workload.ResourceArgs[k] = v
+	}
+
 	var commit wal.Commit
 	defer func() {
 		if commit != nil {
@@ -291,7 +287,7 @@ func (c *Calcium) doDeployOneWorkload(
 			workload.ID = created.ID
 			// We couldn't WAL the workload ID above VirtualizationCreate temporarily,
 			// so there's a time gap window, once the core process crashes between
-			// VirtualizationCreate and logCreateWorkload then the worload is leaky.
+			// VirtualizationCreate and logCreateWorkload then the workload is leaky.
 			if commit, err = c.wal.logCreateWorkload(workload.ID, node.Name); err != nil {
 				return err
 			}
@@ -393,11 +389,7 @@ func (c *Calcium) doDeployOneWorkload(
 func (c *Calcium) doMakeWorkloadOptions(ctx context.Context, no int, msg *types.CreateWorkloadMessage, opts *types.DeployOptions, node *types.Node) *enginetypes.VirtualizationCreateOptions {
 	config := &enginetypes.VirtualizationCreateOptions{}
 	// general
-	config.CPU = msg.CPU
-	config.Quota = msg.CPUQuotaLimit
-	config.Memory = msg.MemoryLimit
-	config.Storage = msg.StorageLimit
-	config.NUMANode = msg.NUMANode
+	config.EngineArgs = msg.EngineArgs
 	config.RawArgs = opts.RawArgs
 	config.Lambda = opts.Lambda
 	config.User = opts.User
@@ -405,10 +397,14 @@ func (c *Calcium) doMakeWorkloadOptions(ctx context.Context, no int, msg *types.
 	config.Image = opts.Image
 	config.Stdin = opts.OpenStdin
 	config.Hosts = opts.ExtraHosts
-	config.Volumes = msg.VolumeLimit.ApplyPlan(msg.VolumePlanLimit).ToStringSlice(false, true)
-	config.VolumePlan = msg.VolumePlanLimit.ToLiteral()
 	config.Debug = opts.Debug
 	config.Networks = opts.Networks
+
+	// resource args
+	config.ResourceArgs = map[string]map[string]interface{}{}
+	for k, v := range msg.ResourceArgs {
+		config.ResourceArgs[k] = v
+	}
 
 	// entry
 	entry := opts.Entrypoint
@@ -436,12 +432,6 @@ func (c *Calcium) doMakeWorkloadOptions(ctx context.Context, no int, msg *types.
 	env = append(env, fmt.Sprintf("ERU_POD=%s", opts.Podname))
 	env = append(env, fmt.Sprintf("ERU_NODE_NAME=%s", node.Name))
 	env = append(env, fmt.Sprintf("ERU_WORKLOAD_SEQ=%d", no))
-	env = append(env, fmt.Sprintf("ERU_MEMORY=%d", msg.MemoryLimit))
-	env = append(env, fmt.Sprintf("ERU_STORAGE=%d", msg.StorageLimit))
-	if msg.CPU != nil {
-		bs, _ := json.Marshal(msg.CPU)
-		env = append(env, fmt.Sprintf("ERU_CPU=%s", bs))
-	}
 	config.Env = env
 	// basic labels, bind to LabelMeta
 	config.Labels = map[string]string{

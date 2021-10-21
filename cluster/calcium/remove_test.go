@@ -6,6 +6,9 @@ import (
 
 	enginemocks "github.com/projecteru2/core/engine/mocks"
 	lockmocks "github.com/projecteru2/core/lock/mocks"
+	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/resources"
+	"github.com/projecteru2/core/resources/mocks"
 	storemocks "github.com/projecteru2/core/store/mocks"
 	"github.com/projecteru2/core/types"
 
@@ -13,6 +16,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+func TestRemoveWorkloadWithResourcePlugin(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c := NewTestCluster()
+	c.store = storemocks.FromTemplate()
+	c.resource = resources.NewPluginManager(ctx, c.config)
+	c.resource.AddPlugins(mocks.NewMockCpuPlugin(), mocks.NewMockMemPlugin())
+
+	ids := createMockWorkloadWithResourcePlugin(t, ctx, c)
+
+	ch, err := c.RemoveWorkload(ctx, ids, true, 1)
+	assert.Nil(t, err)
+	for msg := range ch {
+		log.Infof(ctx, "remove workload msg: %+v", msg)
+		assert.True(t, msg.Success)
+	}
+}
 
 func TestRemoveWorkload(t *testing.T) {
 	c := NewTestCluster()

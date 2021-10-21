@@ -22,9 +22,14 @@ func (c *Calcium) CalculateCapacity(ctx context.Context, opts *types.DeployOptio
 	}
 
 	return msg, c.withNodesLocked(ctx, opts.NodeFilter, func(ctx context.Context, nodeMap map[string]*types.Node) error {
+		nodes := []string{}
+		for node := range nodeMap {
+			nodes = append(nodes, node)
+		}
+
 		if opts.DeployStrategy != strategy.Dummy {
-			if _, msg.NodeCapacities, err = c.doAllocResource(ctx, nodeMap, opts); err != nil {
-				logger.Errorf(ctx, "[Calcium.CalculateCapacity] doAllocResource failed: %+v", err)
+			if msg.NodeCapacities, err = c.doGetDeployMap(ctx, nodes, opts); err != nil {
+				logger.Errorf(ctx, "[Calcium.CalculateCapacity] doGetDeployMap failed: %+v", err)
 				return err
 			}
 
@@ -32,48 +37,35 @@ func (c *Calcium) CalculateCapacity(ctx context.Context, opts *types.DeployOptio
 				msg.Total += capacity
 			}
 		} else {
-			var infos []strategy.Info
-			msg.Total, _, infos, err = c.doCalculateCapacity(ctx, nodeMap, opts)
+			var infos map[string]*resourcetypes.NodeResourceInfo
+			infos, msg.Total, err = c.doCalculateCapacity(ctx, nodes, opts)
 			if err != nil {
 				logger.Errorf(ctx, "[Calcium.CalculateCapacity] doCalculateCapacity failed: %+v", err)
 				return err
 			}
-			for _, info := range infos {
-				msg.NodeCapacities[info.Nodename] = info.Capacity
+			for node, info := range infos {
+				msg.NodeCapacities[node] = info.Capacity
 			}
 		}
 		return nil
 	})
 }
 
-func (c *Calcium) doCalculateCapacity(ctx context.Context, nodeMap map[string]*types.Node, opts *types.DeployOptions) (
+func (c *Calcium) doCalculateCapacity(ctx context.Context, nodes []string, opts *types.DeployOptions) (
+	nodeResourceInfoMap map[string]*resourcetypes.NodeResourceInfo,
 	total int,
-	plans []resourcetypes.ResourcePlans,
-	infos []strategy.Info,
 	err error,
 ) {
-	if len(nodeMap) == 0 {
-		return 0, nil, nil, errors.WithStack(types.ErrInsufficientNodes)
+	if len(nodes) == 0 {
+		return nil, 0, errors.WithStack(types.ErrInsufficientNodes)
 	}
 
-	resourceRequests, err := resources.MakeRequests(opts.ResourceOpts)
+	// get nodes with capacity > 0
+	nodeResourceInfoMap, total, err = c.resource.SelectAvailableNodes(ctx, nodes, resources.RawParams(opts.ResourceOpts))
 	if err != nil {
-		return 0, nil, nil, err
+		log.Errorf(ctx, "[doGetDeployMap] failed to get available nodes,")
+		return nil, 0, err
 	}
 
-	// select available nodes
-	if plans, err = resources.SelectNodesByResourceRequests(ctx, resourceRequests, nodeMap); err != nil {
-		return 0, nil, nil, err
-	}
-
-	// deploy strategy
-	infos = strategy.NewInfos(resourceRequests, nodeMap, plans)
-	for _, info := range infos {
-		total += info.Capacity
-	}
-	log.Debugf(ctx, "[Calcium.doCalculateCapacity] plans: %+v, total: %v", plans, total)
-	if total <= 0 {
-		return 0, nil, nil, errors.Wrap(types.ErrInsufficientRes, "no node meets all the resource requirements at the same time")
-	}
-	return
+	return nodeResourceInfoMap, total, nil
 }

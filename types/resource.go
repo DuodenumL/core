@@ -251,8 +251,8 @@ func (p VolumePlan) FindAffinityPlan(req VolumeBinding) (_ VolumeBinding, _ Volu
 	return
 }
 
-// ResourcePluginOptions .
+// ResourcePluginOptions for create/realloc/replace
 type ResourcePluginOptions map[string]interface{}
 
-// ResourcePluginMeta .
+// ResourcePluginMeta for messages and workload to store
 type ResourcePluginMeta map[string]map[string]interface{}

@@ -8,8 +8,6 @@ import (
 	lock "github.com/projecteru2/core/lock"
 	mock "github.com/stretchr/testify/mock"
 
-	strategy "github.com/projecteru2/core/strategy"
-
 	time "time"
 
 	types "github.com/projecteru2/core/types"
@@ -382,20 +380,6 @@ func (_m *Store) ListWorkloads(ctx context.Context, appname string, entrypoint s
 	}
 
 	return r0, r1
-}
-
-// MakeDeployStatus provides a mock function with given fields: ctx, appname, entryname, sis
-func (_m *Store) MakeDeployStatus(ctx context.Context, appname string, entryname string, sis []strategy.Info) error {
-	ret := _m.Called(ctx, appname, entryname, sis)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, []strategy.Info) error); ok {
-		r0 = rf(ctx, appname, entryname, sis)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // NodeStatusStream provides a mock function with given fields: ctx

@@ -9,6 +9,7 @@ import (
 	"github.com/projecteru2/core/discovery"
 	"github.com/projecteru2/core/discovery/helium"
 	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/scheduler"
 	complexscheduler "github.com/projecteru2/core/scheduler/complex"
 	"github.com/projecteru2/core/source"
@@ -26,6 +27,7 @@ import (
 type Calcium struct {
 	config     types.Config
 	store      store.Store
+	resource   *resources.PluginManager
 	scheduler  scheduler.Scheduler
 	source     source.Source
 	watcher    discovery.Service
@@ -80,7 +82,11 @@ func New(config types.Config, t *testing.T) (*Calcium, error) {
 	// set watcher
 	watcher := helium.New(config.GRPCConfig, store)
 
-	cal := &Calcium{store: store, config: config, scheduler: potassium, source: scm, watcher: watcher}
+	// set resource plugin manager
+	resource := resources.NewPluginManager(context.TODO(), config)
+
+	cal := &Calcium{store: store, config: config, scheduler: potassium, source: scm, watcher: watcher, resource: resource}
+
 	cal.wal, err = newCalciumWAL(cal)
 	cal.identifier = config.Identifier()
 	cal.selfmon = NewNodeStatusWatcher(cal)

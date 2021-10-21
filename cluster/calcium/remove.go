@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/store"
+	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 
@@ -42,7 +42,11 @@ func (c *Calcium) RemoveWorkload(ctx context.Context, ids []string, force bool, 
 									ctx,
 									// if
 									func(ctx context.Context) error {
-										return errors.WithStack(c.store.UpdateNodeResource(ctx, node, &workload.ResourceArgs, store.ActionIncr))
+										resourceArgs := map[string]resources.RawParams{}
+										for plugin, args := range workload.ResourceArgs {
+											resourceArgs[plugin] = args
+										}
+										return errors.WithStack(c.resource.UpdateNodeResource(ctx, node.Name, []map[string]resources.RawParams{resourceArgs}, resources.Incr))
 									},
 									// then
 									func(ctx context.Context) (err error) {
@@ -56,7 +60,11 @@ func (c *Calcium) RemoveWorkload(ctx context.Context, ids []string, force bool, 
 										if failedByCond {
 											return nil
 										}
-										return errors.WithStack(c.store.UpdateNodeResource(ctx, node, &workload.ResourceMeta, store.ActionDecr))
+										resourceArgs := map[string]resources.RawParams{}
+										for plugin, args := range workload.ResourceArgs {
+											resourceArgs[plugin] = args
+										}
+										return errors.WithStack(c.resource.UpdateNodeResource(ctx, node.Name, []map[string]resources.RawParams{resourceArgs}, resources.Decr))
 									},
 									c.config.GlobalTimeout,
 								)
