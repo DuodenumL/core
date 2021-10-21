@@ -27,19 +27,23 @@ type Plugin interface {
 	// UnlockNodes unlocks the given nodes
 	UnlockNodes(ctx context.Context, nodes []string) error
 
-	// GetAvailableNodes returns available nodes and total capacity
-	GetAvailableNodes(ctx context.Context, rawRequest RawParams) (map[string]*types.NodeResourceInfo, int, error)
+	// SelectAvailableNodes returns available nodes and total capacity
+	SelectAvailableNodes(ctx context.Context, nodes []string, requestOpts RawParams) (map[string]*types.NodeResourceInfo, int, error)
 
 	// SetNodeResource sets the node's resource info
 	SetNodeResource(ctx context.Context, node string, rawRequest RawParams) error
 
 	// GetNodeResource returns resource info of the node, format: {"cpu": 2}
 	// also returns diffs, format: ["node.VolumeUsed != sum(workload.VolumeRequest"]
-	GetNodeResource(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload, fix bool) (RawParams, []string, error)
+	GetNodeResource(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (RawParams, []string, error)
 
 	// Alloc allocates resource, returns engine args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
 	// also returns resource args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
 	Alloc(ctx context.Context, node string, deployCount int, rawRequest RawParams) ([]RawParams, []RawParams, error)
+
+	// Realloc reallocates resource, returns engine args and resource args for each workload.
+	// should return error if resource of some node is not enough for the realloc operation.
+	Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts RawParams) (map[string]RawParams, map[string]RawParams, error)
 
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
 	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]RawParams, error)
@@ -96,17 +100,21 @@ func (bp *BinaryPlugin) UnlockNodes(ctx context.Context, nodes []string) (err er
 }
 
 // GetAvailableNodes .
-func (bp *BinaryPlugin) GetAvailableNodes(ctx context.Context, rawRequest RawParams) (map[string]*types.NodeResourceInfo, int, error) {
+func (bp *BinaryPlugin) SelectAvailableNodes(ctx context.Context, nodes []string, rawRequest RawParams) (map[string]*types.NodeResourceInfo, int, error) {
 	panic("implement me")
 }
 
 // GetNodeResource .
-func (bp *BinaryPlugin) GetNodeResource(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload, fix bool) (RawParams, []string, error) {
+func (bp *BinaryPlugin) GetNodeResource(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (RawParams, []string, error) {
 	panic("implement me")
 }
 
 // Alloc .
 func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int, rawRequest RawParams) ([]RawParams, []RawParams, error) {
+	panic("implement me")
+}
+
+func (bp *BinaryPlugin) Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts RawParams) (map[string]RawParams, map[string]RawParams, error) {
 	panic("implement me")
 }
 

@@ -318,8 +318,7 @@ type ExecuteWorkloadOptions struct {
 // ReallocOptions .
 type ReallocOptions struct {
 	ID           string
-	CPUBindOpts  TriOptions
-	ResourceOpts ResourceOptions
+	ResourceOpts ResourcePluginOptions
 }
 
 // TriOptions .

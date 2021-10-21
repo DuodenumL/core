@@ -11,7 +11,6 @@ import (
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/metrics"
 	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/strategy"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 	"github.com/projecteru2/core/wal"
@@ -78,35 +77,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 					}
 
 					return c.resource.WithNodesLocked(ctx, nodes, func(ctx context.Context) error {
-						// get nodes with capacity > 0
-						nodeResourceInfoMap, total, err := c.resource.GetAvailableNodes(ctx, resources.RawParams(opts.ResourceOpts))
-						if err != nil {
-							return err
-						}
-
-						// get deployed & processing workload count on each node
-						deployStatusMap, err := c.store.GetDeployStatus(ctx, opts.Name, opts.Entrypoint.Name)
-						if err != nil {
-							return err
-						}
-
-						// generate strategy info
-						strategyInfos := []strategy.Info{}
-						for node, resourceInfo := range nodeResourceInfoMap {
-							strategyInfos = append(strategyInfos, strategy.Info{
-								Nodename: node,
-								Usage:    resourceInfo.Usage,
-								Rate:     resourceInfo.Rate,
-								Capacity: resourceInfo.Capacity,
-								Count:    deployStatusMap[node],
-							})
-						}
-
-						// generate deploy plan
-						deployMap, err = strategy.Deploy(ctx, opts, strategyInfos, total)
-						if err != nil {
-							return err
-						}
+						deployMap, err = c.doGetDeployMap(ctx, nodes, opts)
 
 						// commit changes
 						for node, deploy := range deployMap {
@@ -115,7 +86,8 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 								return errors.WithStack(err)
 							}
 						}
-						return nil
+
+						return err
 					})
 				})
 			},

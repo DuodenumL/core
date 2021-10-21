@@ -51,7 +51,7 @@ func getEngine() engine.API {
 		}
 		return nil
 	})
-	m.On("VirtualizationStop", mock.Anything, mock.Anything, mock.Anything).Return(func (ctx context.Context, ID string, _ time.Duration) error {
+	m.On("VirtualizationStop", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, ID string, _ time.Duration) error {
 		log.Infof(ctx, "stop virtualization %v", ID)
 		return nil
 	})
@@ -114,15 +114,19 @@ func FromTemplate() store.Store {
 		return node.(*types.Node)
 	}, nil)
 	m.On("AddWorkload", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, workload *types.Workload, _ *types.Processing) error {
-		log.Infof(ctx, "add workload %v", workload)
+		log.Infof(ctx, "add workload %+v", workload)
 		m.workloads.Store(workload.ID, workload)
 		return nil
 	})
 	m.On("UpdateWorkload", mock.Anything, mock.Anything).Return(func(ctx context.Context, workload *types.Workload) error {
-		log.Infof(ctx, "update workload %v", workload)
+		log.Infof(ctx, "update workload %+v", workload)
 		m.workloads.Store(workload.ID, workload)
 		return nil
 	})
+	m.On("GetWorkload", mock.Anything, mock.Anything).Return(func(ctx context.Context, id string) *types.Workload {
+		res, _ := m.workloads.Load(id)
+		return res.(*types.Workload)
+	}, nil)
 	m.On("ListWorkloads", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, appname string, entrypoint string, nodename string, limit int64, labels map[string]string) []*types.Workload {
 		res := []*types.Workload{}
 		m.workloads.Range(func(_, v interface{}) bool {
@@ -160,6 +164,14 @@ func FromTemplate() store.Store {
 		res := []*types.Workload{}
 		m.workloads.Range(func(_, workload interface{}) bool {
 			res = append(res, workload.(*types.Workload))
+			return true
+		})
+		return res
+	}, nil)
+	m.On("ListPodNodes", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, podname string, lables map[string]string, all bool) []*types.Node {
+		res := []*types.Node{}
+		m.nodes.Range(func(_, node interface{}) bool {
+			res = append(res, node.(*types.Node))
 			return true
 		})
 		return res

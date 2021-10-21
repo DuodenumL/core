@@ -140,17 +140,17 @@ func (pm *PluginManager) mergeNodeResourceInfo(m1 map[string]*resourcetypes.Node
 	return res
 }
 
-// GetAvailableNodes returns available nodes which meet all the requirements
+// SelectAvailableNodes returns available nodes which meet all the requirements
 // the caller should require locks
-func (pm *PluginManager) GetAvailableNodes(ctx context.Context, rawRequests RawParams) (map[string]*resourcetypes.NodeResourceInfo, int, error) {
+func (pm *PluginManager) SelectAvailableNodes(ctx context.Context, nodes []string, rawRequests RawParams) (map[string]*resourcetypes.NodeResourceInfo, int, error) {
 	res := map[string]*resourcetypes.NodeResourceInfo{}
 	errChan := make(chan error, len(pm.plugins))
 	infoChan := make(chan map[string]*resourcetypes.NodeResourceInfo, len(pm.plugins))
 
 	pm.callPlugins(func(plugin Plugin) {
-		info, _, err := plugin.GetAvailableNodes(ctx, rawRequests)
+		info, _, err := plugin.SelectAvailableNodes(ctx, nil, rawRequests)
 		if err != nil {
-			log.Errorf(ctx, "[GetAvailableNodes] plugin %v failed to get available nodes, request %v, err %v", plugin.Name(), rawRequests, err)
+			log.Errorf(ctx, "[SelectAvailableNodes] plugin %v failed to get available nodes, request %v, err %v", plugin.Name(), rawRequests, err)
 			errChan <- err
 		} else {
 			infoChan <- info
@@ -227,7 +227,6 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 			log.Errorf(ctx, "[Alloc] plugin %v failed to alloc, request %v, node %v, deploy count %v, err %v", plugin.Name(), rawRequest, node, deployCount, err)
 			errChan <- err
 		} else {
-
 			engineArgsChan <- engineArgs
 			for index, resourceArgsMap := range resResourceArgs {
 				resourceArgsMap[plugin.Name()] = resourceArgs[index]
@@ -255,8 +254,50 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 	return resEngineArgs, resResourceArgs, nil
 }
 
+// Realloc reallocates resource for workloads, returns engine args and resource args for each workload.
+// format of engine args: {"workload1": {"cpu": 1.2}}
+// format of resource args: {"workload1": {"cpu-plugin": {"cpu": 1.2}}}
+func (pm *PluginManager) Realloc(ctx context.Context, workloads []*types.Workload, resourceOpts RawParams) (map[string]RawParams, map[string]map[string]RawParams, error) {
+	engineArgsMap := map[string]RawParams{}
+	resourceArgsMap := map[string]map[string]RawParams{}
+	workloadIDs := []string{}
+
+	for _, workload := range workloads {
+		engineArgsMap[workload.ID] = RawParams{}
+		resourceArgsMap[workload.ID] = map[string]RawParams{}
+		workloadIDs = append(workloadIDs, workload.ID)
+	}
+
+	errChan := make(chan error, len(pm.plugins))
+
+	pm.callPlugins(func(plugin Plugin) {
+		engineArgs, resourceArgs, err := plugin.Realloc(ctx, workloads, resourceOpts)
+		if err != nil {
+			log.Errorf(ctx, "[Realloc] plugin %v failed to realloc for workloads %v, err: %v", plugin.Name(), workloadIDs, err)
+			errChan <- err
+		} else {
+			for workloadID, args := range engineArgs {
+				engineArgsMap[workloadID], err = pm.mergeEngineArgs(ctx, engineArgsMap[workloadID], args)
+				if err != nil {
+					log.Errorf(ctx, "[Realloc] plugin %v failed to merge engine args for workload %v, err: %v", plugin.Name(), workloadID, err)
+					errChan <- err
+					return
+				}
+				resourceArgsMap[workloadID] = resourceArgs
+			}
+		}
+	})
+
+	close(errChan)
+	if len(errChan) > 0 {
+		return nil, nil, types.ErrReallocFailed
+	}
+
+	return engineArgsMap, resourceArgsMap, nil
+}
+
 // GetNodeResource .
-func (pm *PluginManager) GetNodeResource(ctx context.Context, node string, workloadMap map[string]*types.Workload, fix bool) (map[string]RawParams, []string, error) {
+func (pm *PluginManager) GetNodeResource(ctx context.Context, node string, workloads []*types.Workload, fix bool) (map[string]RawParams, []string, error) {
 	resNodeResource := map[string]RawParams{}
 	resDiffs := []string{}
 
@@ -264,7 +305,7 @@ func (pm *PluginManager) GetNodeResource(ctx context.Context, node string, workl
 	errChan := make(chan error, len(pm.plugins))
 
 	pm.callPlugins(func(plugin Plugin) {
-		nodeResource, diffs, err := plugin.GetNodeResource(ctx, node, workloadMap, fix)
+		nodeResource, diffs, err := plugin.GetNodeResource(ctx, node, workloads, fix)
 		if err != nil {
 			log.Errorf(ctx, "[GetNodeResource] plugin %v failed to get node resource of node %v, err: %v", plugin.Name(), node, err)
 			errChan <- err

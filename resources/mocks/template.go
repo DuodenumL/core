@@ -14,7 +14,7 @@ func NewMockCpuPlugin() *Plugin {
 	m := &Plugin{}
 	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
 	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("GetAvailableNodes", mock.Anything, mock.Anything).Return(map[string]*types.NodeResourceInfo{
+	m.On("SelectAvailableNodes", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeResourceInfo{
 		"node1": {
 			NodeName: "node1",
 			Capacity: 1,
@@ -54,12 +54,49 @@ func NewMockCpuPlugin() *Plugin {
 	})
 
 	m.On("Name").Return("cpu-plugin")
+
 	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*types2.Workload) map[string]resources.RawParams {
 		log.Infof(ctx, "[Remap] node %v", node)
 		res := map[string]resources.RawParams{}
 		for workloadID := range workloadMap {
 			res[workloadID] = map[string]interface{}{
 				"cpuset-cpus": []string{"0-65535"}, // I'm rich!
+			}
+		}
+		return res
+	}, nil)
+
+	m.On("GetNodeResource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		resources.RawParams{
+			"cpu":         "100",
+			"cpu_percent": "0.001%",
+		},
+		[]string{"cpu is sleepy"},
+		nil,
+	)
+
+	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, workloads []*types2.Workload, resourceOpts resources.RawParams) map[string]resources.RawParams {
+		ids := []string{}
+		for _, workload := range workloads {
+			ids = append(ids, workload.ID)
+		}
+		log.Infof(ctx, "[Realloc] cpu-plugin realloc workloads, resource opts: %v", resourceOpts)
+		res := map[string]resources.RawParams{}
+
+		for _, workload := range workloads {
+			// mock engine args
+			res[workload.ID] = resources.RawParams{
+				"cpu": 10086,
+			}
+		}
+		return res
+	}, func(ctx context.Context, workloads []*types2.Workload, resourceOpts resources.RawParams) map[string]resources.RawParams {
+		res := map[string]resources.RawParams{}
+
+		for _, workload := range workloads {
+			// mock resource args
+			res[workload.ID] = resources.RawParams{
+				"cpu": 10086,
 			}
 		}
 		return res
@@ -72,7 +109,7 @@ func NewMockMemPlugin() *Plugin {
 	m := &Plugin{}
 	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
 	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("GetAvailableNodes", mock.Anything, mock.Anything).Return(map[string]*types.NodeResourceInfo{
+	m.On("SelectAvailableNodes", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeResourceInfo{
 		"node1": {
 			NodeName: "node1",
 			Capacity: 1,
@@ -122,6 +159,42 @@ func NewMockMemPlugin() *Plugin {
 	m.On("Name").Return("mem-plugin")
 
 	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(map[string]resources.RawParams{}, nil)
+
+	m.On("GetNodeResource", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		resources.RawParams{
+			"mem_cap":     "10000PB",
+			"mem_percent": "0.001%",
+		},
+		[]string{"the mem_cap doesn't look like a machine on earth"},
+		nil,
+	)
+
+	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, workloads []*types2.Workload, resourceOpts resources.RawParams) map[string]resources.RawParams {
+		ids := []string{}
+		for _, workload := range workloads {
+			ids = append(ids, workload.ID)
+		}
+		log.Infof(ctx, "[Realloc] mem-plugin realloc workloads, resource opts: %v", resourceOpts)
+		res := map[string]resources.RawParams{}
+
+		for _, workload := range workloads {
+			// mock engine args
+			res[workload.ID] = resources.RawParams{
+				"mem": "10086PB",
+			}
+		}
+		return res
+	}, func(ctx context.Context, workloads []*types2.Workload, resourceOpts resources.RawParams) map[string]resources.RawParams {
+		res := map[string]resources.RawParams{}
+
+		for _, workload := range workloads {
+			// mock resource args
+			res[workload.ID] = resources.RawParams{
+				"mem": "10086PB",
+			}
+		}
+		return res
+	}, nil)
 
 	return m
 }

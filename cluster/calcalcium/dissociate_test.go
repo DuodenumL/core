@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPodResource(t *testing.T) {
+func TestDissociateWorkload(t *testing.T) {
 	c := NewTestCluster()
 	c.store = storemocks.FromTemplate()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -21,9 +21,12 @@ func TestPodResource(t *testing.T) {
 	c.resource = resources.NewPluginManager(ctx, c.config)
 	c.resource.AddPlugins(mocks.NewMockCpuPlugin(), mocks.NewMockMemPlugin())
 
-	createMockWorkloadWithResourcePlugin(t, ctx, c)
+	ids := createMockWorkloadWithResourcePlugin(t, ctx, c)
 
-	res, err := c.PodResource(ctx, "somepod")
+	ch, err := c.DissociateWorkload(ctx, ids)
 	assert.Nil(t, err)
-	fmt.Println(litter.Sdump(res))
+
+	for msg := range ch {
+		fmt.Println(litter.Sdump(msg))
+	}
 }

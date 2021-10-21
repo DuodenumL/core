@@ -3,8 +3,11 @@ package calcalcium
 import (
 	"context"
 	"fmt"
+
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/resources"
+	"github.com/projecteru2/core/strategy"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 )
@@ -59,12 +62,8 @@ func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bo
 				log.Errorf(ctx, "[doGetNodeResource] failed to list node workloads, node %v, err: %v", nodename, err)
 				return err
 			}
-			workloadMap := map[string]*types.Workload{}
-			for _, workload := range workloads {
-				workloadMap[workload.ID] = workload
-			}
 
-			resourceArgs, diffs, err := c.resource.GetNodeResource(ctx, nodename, workloadMap, fix)
+			resourceArgs, diffs, err := c.resource.GetNodeResource(ctx, nodename, workloads, fix)
 			if err != nil {
 				log.Errorf(ctx, "[doGetNodeResource] failed to get node resource, node %v, err: %v", nodename, err)
 				return err
@@ -82,6 +81,41 @@ func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bo
 			return nil
 		})
 	})
+}
+func (c *Calcium) doGetDeployMap(ctx context.Context, nodes []string, opts *types.DeployOptions) (map[string]int, error) {
+	// get nodes with capacity > 0
+	nodeResourceInfoMap, total, err := c.resource.SelectAvailableNodes(ctx, nodes, resources.RawParams(opts.ResourceOpts))
+	if err != nil {
+		log.Errorf(ctx, "[doGetDeployMap] failed to select available nodes, nodes %v, err %v", nodes, err)
+		return nil, err
+	}
+
+	// get deployed & processing workload count on each node
+	deployStatusMap, err := c.store.GetDeployStatus(ctx, opts.Name, opts.Entrypoint.Name)
+	if err != nil {
+		log.Errorf(ctx, "failed to get deploy status for %v_%v, err %v", opts.Name, opts.Entrypoint.Name, err)
+		return nil, err
+	}
+
+	// generate strategy info
+	strategyInfos := []strategy.Info{}
+	for node, resourceInfo := range nodeResourceInfoMap {
+		strategyInfos = append(strategyInfos, strategy.Info{
+			Nodename: node,
+			Usage:    resourceInfo.Usage,
+			Rate:     resourceInfo.Rate,
+			Capacity: resourceInfo.Capacity,
+			Count:    deployStatusMap[node],
+		})
+	}
+
+	// generate deploy plan
+	deployMap, err := strategy.Deploy(ctx, opts, strategyInfos, total)
+	if err != nil {
+		return nil, err
+	}
+
+	return deployMap, nil
 }
 
 type remapMsg struct {

@@ -2,13 +2,13 @@ package calcalcium
 
 import (
 	"context"
-	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/resources/mocks"
 	"testing"
 
 	enginemocks "github.com/projecteru2/core/engine/mocks"
 	lockmocks "github.com/projecteru2/core/lock/mocks"
+	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/resources"
+	"github.com/projecteru2/core/resources/mocks"
 	storemocks "github.com/projecteru2/core/store/mocks"
 	"github.com/projecteru2/core/types"
 
