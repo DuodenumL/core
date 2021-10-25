@@ -2,6 +2,7 @@ package calcium
 
 import (
 	"context"
+	"github.com/projecteru2/core/resources"
 	"sort"
 
 	"github.com/projecteru2/core/log"
@@ -18,9 +19,38 @@ func (c *Calcium) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*typ
 	if err := opts.Validate(); err != nil {
 		return nil, logger.Err(ctx, err)
 	}
-	opts.Normalize()
-	node, err := c.store.AddNode(ctx, opts)
-	return node, logger.Err(ctx, errors.WithStack(err))
+
+	var resourceCapacity map[string]types.RawParams
+	var resourceUsage map[string]types.RawParams
+	var node *types.Node
+	var err error
+
+	return node, logger.Err(ctx, utils.Txn(
+		ctx,
+		// if: add node resource with resource plugins
+		func(ctx context.Context) error {
+			resourceCapacity, resourceUsage, err = c.resource.AddNode(ctx, opts.Nodename, types.RawParams(opts.ResourceOpts))
+			return errors.WithStack(err)
+		},
+		// then: add node meta in store
+		func(ctx context.Context) error {
+			node, err = c.store.AddNode(ctx, opts)
+			if err != nil {
+				return errors.WithStack(err)
+			}
+			node.ResourceCapacity = resourceCapacity
+			node.ResourceUsage = resourceUsage
+			return nil
+		},
+		// rollback: remove node with resource plugins
+		func(ctx context.Context, failureByCond bool) error {
+			if failureByCond {
+				return nil
+			}
+			return errors.WithStack(c.resource.RemoveNode(ctx, opts.Nodename))
+		},
+		c.config.GlobalTimeout),
+	)
 }
 
 // RemoveNode remove a node
@@ -37,7 +67,21 @@ func (c *Calcium) RemoveNode(ctx context.Context, nodename string) error {
 		if len(ws) > 0 {
 			return logger.Err(ctx, errors.WithStack(types.ErrNodeNotEmpty))
 		}
-		return logger.Err(ctx, errors.WithStack(c.store.RemoveNode(ctx, node)))
+		return utils.Txn(ctx,
+			// if: remove node metadata
+			func(ctx context.Context) error {
+				return errors.WithStack(c.store.RemoveNode(ctx, node))
+			},
+			// then: remove node metadata
+			func(ctx context.Context) error {
+				return errors.WithStack(c.resource.RemoveNode(ctx, nodename))
+			},
+			// todo: rollback
+			func(ctx context.Context, b bool) error {
+				return nil
+			},
+			c.config.GlobalTimeout,
+		)
 	})
 }
 
@@ -82,7 +126,14 @@ func (c *Calcium) GetNode(ctx context.Context, nodename string) (*types.Node, er
 		return nil, logger.Err(ctx, errors.WithStack(types.ErrEmptyNodeName))
 	}
 	node, err := c.store.GetNode(ctx, nodename)
-	return node, logger.Err(ctx, errors.WithStack(err))
+	if err != nil {
+		return nil, logger.Err(ctx, errors.WithStack(err))
+	}
+	node.ResourceCapacity, node.ResourceUsage, _, err = c.resource.GetNodeResourceInfo(ctx, nodename, nil, false)
+	if err != nil {
+		return nil, logger.Err(ctx, errors.WithStack(err))
+	}
+	return node, nil
 }
 
 func (c *Calcium) setAllWorkloadsOnNodeDown(ctx context.Context, nodename string) {
@@ -150,75 +201,35 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 		if len(opts.Labels) != 0 {
 			n.Labels = opts.Labels
 		}
-		// update numa
-		if len(opts.NUMA) != 0 {
-			n.NUMA = opts.NUMA
-		}
-		// update numa memory
-		for numaNode, memoryDelta := range opts.DeltaNUMAMemory {
-			if _, ok := n.NUMAMemory[numaNode]; ok {
-				n.NUMAMemory[numaNode] += memoryDelta
-				n.InitNUMAMemory[numaNode] += memoryDelta
-				if n.NUMAMemory[numaNode] < 0 {
-					return logger.Err(ctx, errors.WithStack(types.ErrBadMemory))
+
+		logger.Err(ctx, utils.Txn(ctx,
+			// if: update node resource capacity success
+			func(ctx context.Context) error {
+				if len(opts.ResourceOpts) == 0 {
+					return nil
 				}
-			}
-		}
-		if opts.DeltaStorage != 0 {
-			// update storage
-			n.StorageCap += opts.DeltaStorage
-			n.InitStorageCap += opts.DeltaStorage
-			if n.StorageCap < 0 {
-				return logger.Err(ctx, errors.WithStack(types.ErrBadStorage))
-			}
-		}
-		if opts.DeltaMemory != 0 {
-			// update memory
-			n.MemCap += opts.DeltaMemory
-			n.InitMemCap += opts.DeltaMemory
-			if n.MemCap < 0 {
-				return logger.Err(ctx, errors.WithStack(types.ErrBadStorage))
-			}
-		}
-		// update cpu
-		for cpuID, cpuShare := range opts.DeltaCPU {
-			_, ok := n.CPU[cpuID]
-			switch {
-			case !ok && cpuShare > 0: // incr CPU
-				n.CPU[cpuID] = cpuShare
-				n.InitCPU[cpuID] = cpuShare
-			case ok: // decr share
-				n.CPU[cpuID] += cpuShare
-				n.InitCPU[cpuID] += cpuShare
-				if n.CPU[cpuID] < 0 {
-					return logger.Err(ctx, errors.WithStack(types.ErrBadCPU))
+				return c.resource.WithNodesLocked(ctx, []string{n.Name}, func(ctx context.Context) error {
+					return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, types.RawParams(opts.ResourceOpts), resources.Incr))
+				})
+			},
+			// then: update node metadata
+			func(ctx context.Context) error {
+				return errors.WithStack(c.store.UpdateNodes(ctx, n))
+			},
+			// rollback: update node resource capacity in reverse
+			func(ctx context.Context, failureByCond bool) error {
+				if failureByCond {
+					return nil
 				}
-				if n.InitCPU[cpuID] == 0 {
-					// decr CPU
-					delete(n.CPU, cpuID)
-					delete(n.InitCPU, cpuID)
+				if len(opts.ResourceOpts) == 0 {
+					return nil
 				}
-			}
-		}
-		// update volume
-		for volumeDir, changeCap := range opts.DeltaVolume {
-			_, ok := n.Volume[volumeDir]
-			switch {
-			case !ok && changeCap > 0:
-				n.Volume[volumeDir] = changeCap
-				n.InitVolume[volumeDir] = changeCap
-			case ok && changeCap == 0:
-				delete(n.Volume, volumeDir)
-				delete(n.InitVolume, volumeDir)
-			case ok:
-				n.Volume[volumeDir] += changeCap
-				n.InitVolume[volumeDir] += changeCap
-				if n.Volume[volumeDir] < 0 {
-					return logger.Err(ctx, errors.WithStack(types.ErrBadVolume))
-				}
-			}
-		}
-		return logger.Err(ctx, errors.WithStack(c.store.UpdateNodes(ctx, n)))
+				return c.resource.WithNodesLocked(ctx, []string{n.Name}, func(ctx context.Context) error {
+					return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, types.RawParams(opts.ResourceOpts), resources.Decr))
+				})
+			},
+			c.config.GlobalTimeout,
+		))
 	})
 }
 

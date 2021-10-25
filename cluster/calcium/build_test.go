@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	enginemocks "github.com/projecteru2/core/engine/mocks"
-	schedulermocks "github.com/projecteru2/core/scheduler/mocks"
 	storemocks "github.com/projecteru2/core/store/mocks"
 	"github.com/projecteru2/core/types"
 
@@ -82,13 +81,6 @@ func TestBuild(t *testing.T) {
 		Engine:    engine,
 	}
 	store.On("GetNodesByPod", mock.AnythingOfType("*context.emptyCtx"), mock.Anything, mock.Anything, mock.Anything).Return([]*types.Node{node}, nil)
-	scheduler := &schedulermocks.Scheduler{}
-	c.scheduler = scheduler
-	// failed by MaxIdleNode
-	scheduler.On("MaxIdleNode", mock.AnythingOfType("[]*types.Node")).Return(nil, types.ErrBadMeta).Once()
-	ch, err = c.BuildImage(ctx, opts)
-	assert.Error(t, err)
-	scheduler.On("MaxIdleNode", mock.AnythingOfType("[]*types.Node")).Return(node, nil)
 	// create image
 	c.config.Docker.Hub = "test.com"
 	c.config.Docker.Namespace = "test"

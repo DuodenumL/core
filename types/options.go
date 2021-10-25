@@ -12,7 +12,7 @@ import (
 // DeployOptions is options for deploying
 type DeployOptions struct {
 	//ResourceOpts   ResourceOptions
-	ResourceOpts   ResourcePluginOptions
+	ResourceOpts   ResourceOptions
 	Name           string            // Name of application
 	Entrypoint     *Entrypoint       // entrypoint
 	Podname        string            // Name of pod to deploy
@@ -186,20 +186,14 @@ type ListNodesOptions struct {
 
 // AddNodeOptions for adding node
 type AddNodeOptions struct {
-	Nodename   string
-	Endpoint   string
-	Podname    string
-	Ca         string
-	Cert       string
-	Key        string
-	CPU        int
-	Share      int
-	Memory     int64
-	Storage    int64
-	Labels     map[string]string
-	Numa       NUMA
-	NumaMemory NUMAMemory
-	Volume     VolumeMap
+	Nodename     string
+	Endpoint     string
+	Podname      string
+	Ca           string
+	Cert         string
+	Key          string
+	ResourceOpts ResourceOptions
+	Labels       map[string]string
 }
 
 // Validate checks options
@@ -213,52 +207,23 @@ func (o *AddNodeOptions) Validate() error {
 	if o.Endpoint == "" {
 		return errors.WithStack(ErrEmptyNodeEndpoint)
 	}
-	if o.CPU < 0 {
-		return errors.WithStack(ErrNegativeCPU)
-	}
-	if o.Share < 0 {
-		return errors.WithStack(ErrNegativeShare)
-	}
-	if o.Memory < 0 {
-		return errors.WithStack(ErrNegativeMemory)
-	}
-	for _, m := range o.NumaMemory {
-		if m < 0 {
-			return errors.WithStack(ErrNegativeNUMAMemory)
-		}
-	}
-	for _, size := range o.Volume {
-		if size < 0 {
-			return errors.WithStack(ErrNegativeVolumeSize)
-		}
-	}
-	if o.Storage < 0 {
-		return errors.WithStack(ErrNegativeStorage)
-	}
 	return nil
-}
-
-// Normalize keeps options consistent
-func (o *AddNodeOptions) Normalize() {
-	o.Storage += o.Volume.Total()
 }
 
 // SetNodeOptions for node set
 type SetNodeOptions struct {
-	Nodename        string
-	Endpoint        string
-	WorkloadsDown   bool
-	DeltaCPU        CPUMap
-	DeltaMemory     int64
-	DeltaStorage    int64
-	DeltaNUMAMemory map[string]int64
-	DeltaVolume     VolumeMap
-	NUMA            map[string]string
-	Labels          map[string]string
-	BypassOpt       TriOptions
-	Ca              string
-	Cert            string
-	Key             string
+	Nodename      string
+	Endpoint      string
+	WorkloadsDown bool
+	ResourceOpts  ResourceOptions
+	Labels        map[string]string
+	BypassOpt     TriOptions
+	Nodename      string
+	Endpoint      string
+	Ca            string
+	Cert          string
+	Key           string
+	WorkloadsDown bool
 }
 
 // Validate checks options
@@ -267,16 +232,6 @@ func (o *SetNodeOptions) Validate() error {
 		return errors.WithStack(ErrEmptyNodeName)
 	}
 	return nil
-}
-
-// Normalize keeps options consistent
-func (o *SetNodeOptions) Normalize(node *Node) {
-	o.DeltaStorage += o.DeltaVolume.Total()
-	for volID, size := range o.DeltaVolume {
-		if size == 0 {
-			o.DeltaStorage -= node.InitVolume[volID]
-		}
-	}
 }
 
 // ImageOptions wraps options for images
@@ -318,7 +273,7 @@ type ExecuteWorkloadOptions struct {
 // ReallocOptions .
 type ReallocOptions struct {
 	ID           string
-	ResourceOpts ResourcePluginOptions
+	ResourceOpts ResourceOptions
 }
 
 // TriOptions .

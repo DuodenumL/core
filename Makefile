@@ -31,7 +31,6 @@ test: deps unit-test
 mock: deps
 	mockery --dir vendor/google.golang.org/grpc --output 3rdmocks --name ServerStream
 	mockery --dir vendor/github.com/docker/docker/client --output engine/docker/mocks --name APIClient
-	mockery --dir scheduler --output scheduler/mocks --name Scheduler
 	mockery --dir source --output source/mocks --name Source
 	mockery --dir store --output store/mocks --name Store
 	mockery --dir engine --output engine/mocks --name API

@@ -53,3 +53,25 @@ func Txn(ctx context.Context, cond contextFunc, then contextFunc, rollback func(
 
 	return txnErr
 }
+
+// PCR Prepare, Commit, Rollback.
+// `prepare` should be a pure calculation process without side effects.
+// `commit` writes the calculation result of `prepare` into database.
+// if `commit` returns error, `rollback` will be performed.
+func PCR(ctx context.Context, prepare func() error, commit func() error, rollback func() error) error {
+	err := prepare()
+	if err != nil {
+		log.Errorf(ctx, "[PCR] failed to prepare, err: %v", err)
+		return err
+	}
+	err = commit()
+	if err != nil {
+		log.Errorf(ctx, "[PCR] failed to commit, err: %v", err)
+		rollbackErr := rollback()
+		if rollbackErr != nil {
+			log.Errorf(ctx, "[PCR] failed to rollback, err: %v", rollbackErr)
+		}
+		return err
+	}
+	return nil
+}

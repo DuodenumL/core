@@ -10,8 +10,6 @@ import (
 	"github.com/projecteru2/core/discovery/helium"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/scheduler"
-	complexscheduler "github.com/projecteru2/core/scheduler/complex"
 	"github.com/projecteru2/core/source"
 	"github.com/projecteru2/core/source/github"
 	"github.com/projecteru2/core/source/gitlab"
@@ -28,7 +26,6 @@ type Calcium struct {
 	config     types.Config
 	store      store.Store
 	resource   *resources.PluginManager
-	scheduler  scheduler.Scheduler
 	source     source.Source
 	watcher    discovery.Service
 	wal        *WAL
@@ -56,13 +53,6 @@ func New(config types.Config, t *testing.T) (*Calcium, error) {
 		}
 	}
 
-	// set scheduler
-	potassium, err := complexscheduler.New(config)
-	if err != nil {
-		return nil, logger.Err(context.TODO(), errors.WithStack(err))
-	}
-	scheduler.InitSchedulerV1(potassium)
-
 	// set scm
 	var scm source.Source
 	scmtype := strings.ToLower(config.Git.SCMType)
@@ -85,7 +75,7 @@ func New(config types.Config, t *testing.T) (*Calcium, error) {
 	// set resource plugin manager
 	resource := resources.NewPluginManager(context.TODO(), config)
 
-	cal := &Calcium{store: store, config: config, scheduler: potassium, source: scm, watcher: watcher, resource: resource}
+	cal := &Calcium{store: store, config: config, source: scm, watcher: watcher, resource: resource}
 
 	cal.wal, err = newCalciumWAL(cal)
 	cal.identifier = config.Identifier()

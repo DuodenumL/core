@@ -36,7 +36,7 @@ type LabelMeta struct {
 // if you wanna get realtime information, use Inspect method
 type Workload struct {
 	//ResourceMeta
-	ResourceArgs ResourcePluginMeta     `json:"resource_args"`
+	ResourceArgs ResourceMeta           `json:"resource_args"`
 	EngineArgs   map[string]interface{} `json:"engine_args"`
 	ID           string                 `json:"id"`
 	Name         string                 `json:"name"`

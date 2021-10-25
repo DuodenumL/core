@@ -4,9 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/projecteru2/core/resources"
-	resourcetypes "github.com/projecteru2/core/resources/types"
-	resourcetypesmocks "github.com/projecteru2/core/resources/types/mocks"
 	"github.com/projecteru2/core/types"
 
 	"github.com/stretchr/testify/assert"
@@ -50,17 +47,4 @@ func TestDeploy(t *testing.T) {
 	}
 	_, err = Deploy(context.TODO(), opts, nil, 2)
 	assert.Error(t, err)
-}
-
-func TestNewInfos(t *testing.T) {
-	rrs, err := resources.MakeRequests(types.ResourceOptions{})
-	assert.Nil(t, err)
-	nodeMap := map[string]*types.Node{
-		"node1": {},
-		"node2": {},
-	}
-	mockPlan := &resourcetypesmocks.ResourcePlans{}
-	mockPlan.On("Capacity").Return(map[string]int{"node1": 1})
-	plans := []resourcetypes.ResourcePlans{mockPlan}
-	NewInfos(rrs, nodeMap, plans)
 }

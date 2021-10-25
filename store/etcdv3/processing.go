@@ -10,7 +10,6 @@ import (
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/types"
 
-	"github.com/sanity-io/litter"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -57,8 +56,7 @@ func (m *Mercury) doLoadProcessing(ctx context.Context, appname, entryname strin
 		}
 		nodesCount[nodename] += count
 	}
-
-	log.Debug(ctx, "[doLoadProcessing] Processing result: %s", litter.Options{Compact: true}.Sdump(nodesCount))
+	log.Debug(ctx, "[doLoadProcessing] Processing result: %+v", nodesCount)
 	return nodesCount, nil
 }
 

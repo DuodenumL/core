@@ -175,9 +175,6 @@ func TestHandleCreateLambda(t *testing.T) {
 	store.On("RemoveWorkload", mock.Anything, wrk).
 		Return(nil).
 		Once()
-	store.On("UpdateNodeResource", mock.Anything, node, mock.Anything, mock.Anything).
-		Return(nil).
-		Once()
 
 	lock := &lockmocks.DistributedLock{}
 	lock.On("Lock", mock.Anything).Return(context.TODO(), nil)

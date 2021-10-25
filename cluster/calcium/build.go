@@ -75,8 +75,10 @@ func (c *Calcium) selectBuildNode(ctx context.Context) (*types.Node, error) {
 		return nil, errors.WithStack(types.ErrInsufficientNodes)
 	}
 	// get idle max node
-	node, err := c.scheduler.MaxIdleNode(nodes)
-	return node, err
+	// node, err := c.scheduler.MaxIdleNode(nodes)
+	// todo: node, err := c.resource.MaxIdleNode(nodes)
+	node := nodes[0]
+	return node, nil
 }
 
 func (c *Calcium) buildFromSCM(ctx context.Context, node *types.Node, opts *types.BuildOptions) ([]string, io.ReadCloser, error) {

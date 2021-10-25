@@ -136,7 +136,7 @@ RdCPRPt513WozkJZZAjUSP2U
 	nodename3 := "nodename3"
 	endpoint3 := "tcp://path"
 	s.rediaron.config.CertPath = "/tmp"
-	node3, err := s.rediaron.doAddNode(ctx, nodename3, endpoint3, podname, ca, cert, certkey, cpu, share, memory, storage, labels, nil, nil, nil)
+	node3, err := s.rediaron.doAddNode(ctx, nodename3, endpoint3, podname, ca, cert, certkey, labels)
 	s.NoError(err)
 	_, err = s.rediaron.makeClient(ctx, node3)
 	s.Error(err)
@@ -148,7 +148,7 @@ RdCPRPt513WozkJZZAjUSP2U
 
 func (s *RediaronTestSuite) TestRemoveNode() {
 	ctx := context.Background()
-	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", 100, 100, 100000, 100000, nil, nil, nil, nil)
+	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", nil)
 	s.NoError(err)
 	s.Equal(node.Name, "test")
 	s.NoError(s.rediaron.RemoveNode(ctx, nil))
@@ -157,7 +157,7 @@ func (s *RediaronTestSuite) TestRemoveNode() {
 
 func (s *RediaronTestSuite) TestGetNode() {
 	ctx := context.Background()
-	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", 100, 100, 100000, 100000, nil, nil, nil, nil)
+	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", nil)
 	s.NoError(err)
 	s.Equal(node.Name, "test")
 	_, err = s.rediaron.GetNode(ctx, "wtf")
@@ -169,7 +169,7 @@ func (s *RediaronTestSuite) TestGetNode() {
 
 func (s *RediaronTestSuite) TestGetNodesByPod() {
 	ctx := context.Background()
-	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", 100, 100, 100000, 100000, map[string]string{"x": "y"}, nil, nil, nil)
+	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", map[string]string{"x": "y"})
 	s.NoError(err)
 	s.Equal(node.Name, "test")
 	ns, err := s.rediaron.GetNodesByPod(ctx, "wtf", nil, false)
@@ -190,7 +190,7 @@ func (s *RediaronTestSuite) TestGetNodesByPod() {
 
 func (s *RediaronTestSuite) TestUpdateNode() {
 	ctx := context.Background()
-	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", 100, 100, 100000, 100000, map[string]string{"x": "y"}, nil, nil, nil)
+	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", map[string]string{"x": "y"})
 	s.NoError(err)
 	s.Equal(node.Name, "test")
 	fakeNode := &types.Node{
@@ -209,7 +209,7 @@ func (s *RediaronTestSuite) TestUpdateNode() {
 
 func (s *RediaronTestSuite) TestUpdateNodeResource() {
 	ctx := context.Background()
-	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", 1, 100, 100000, 100000, map[string]string{"x": "y"}, map[string]string{"0": "0"}, map[string]int64{"0": 100}, nil)
+	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", map[string]string{"x": "y"})
 	s.NoError(err)
 	s.Equal(node.Name, "test")
 	s.Error(s.rediaron.UpdateNodeResource(ctx, node, nil, "wtf"))

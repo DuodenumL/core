@@ -8,8 +8,6 @@ import (
 
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/types"
-
-	"github.com/sanity-io/litter"
 )
 
 func (r *Rediaron) getProcessingKey(processing *types.Processing) string {
@@ -55,7 +53,6 @@ func (r *Rediaron) doLoadProcessing(ctx context.Context, appname, entryname stri
 		nodesCount[nodename] += count
 	}
 
-	log.Debug(ctx, "[doLoadProcessing] Processing result:")
-	litter.Options{Compact: true}.Dump(nodesCount)
+	log.Debug(ctx, "[doLoadProcessing] Processing result: %+v", nodesCount)
 	return nodesCount, nil
 }

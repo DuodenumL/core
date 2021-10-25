@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -13,8 +12,6 @@ import (
 	enginefactory "github.com/projecteru2/core/engine/factory"
 	"github.com/projecteru2/core/engine/fake"
 	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/metrics"
-	"github.com/projecteru2/core/store"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 
@@ -25,7 +22,7 @@ import (
 // storage path in etcd is `/pod/nodes/:podname/:nodename`
 // node->pod path in etcd is `/node/pod/:nodename`
 // func (m *Rediaron) AddNode(ctx context.Context, name, endpoint, podname, ca, cert, key string,
-// cpu, share int, memory, storage int64, labels map[string]string,
+// labels map[string]string,
 // numa types.NUMA, numaMemory types.NUMAMemory, volume types.VolumeMap) (*types.Node, error) {
 func (r *Rediaron) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*types.Node, error) {
 	_, err := r.GetPod(ctx, opts.Podname)
@@ -41,44 +38,11 @@ func (r *Rediaron) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*ty
 	}
 
 	// 判断这货是不是活着的
-	info, err := client.Info(ctx)
-	if err != nil {
+	if _, err = client.Info(ctx); err != nil {
 		return nil, err
 	}
-	// 更新默认值
-	if opts.CPU == 0 {
-		opts.CPU = info.NCPU
-	}
-	if opts.Memory == 0 {
-		opts.Memory = info.MemTotal * 8 / 10 // use 80% real memory
-	}
-	if opts.Storage == 0 {
-		opts.Storage = info.StorageTotal * 8 / 10
-	}
-	if opts.Share == 0 {
-		opts.Share = r.config.Scheduler.ShareBase
-	}
-	if opts.Volume == nil {
-		opts.Volume = types.VolumeMap{}
-	}
-	// 设置 numa 的内存默认值，如果没有的话，按照 numa node 个数均分
-	if len(opts.Numa) > 0 {
-		nodeIDs := map[string]struct{}{}
-		for _, nodeID := range opts.Numa {
-			nodeIDs[nodeID] = struct{}{}
-		}
-		perNodeMemory := opts.Memory / int64(len(nodeIDs))
-		if opts.NumaMemory == nil {
-			opts.NumaMemory = types.NUMAMemory{}
-		}
-		for nodeID := range nodeIDs {
-			if _, ok := opts.NumaMemory[nodeID]; !ok {
-				opts.NumaMemory[nodeID] = perNodeMemory
-			}
-		}
-	}
-
-	return r.doAddNode(ctx, opts.Nodename, opts.Endpoint, opts.Podname, opts.Ca, opts.Cert, opts.Key, opts.CPU, opts.Share, opts.Memory, opts.Storage, opts.Labels, opts.Numa, opts.NumaMemory, opts.Volume)
+	// TODO 更新默认值
+	return r.doAddNode(ctx, opts.Nodename, opts.Endpoint, opts.Podname, opts.Ca, opts.Cert, opts.Key, opts.Labels)
 }
 
 // RemoveNode delete a node
@@ -206,7 +170,7 @@ func (r *Rediaron) makeClient(ctx context.Context, node *types.Node) (client eng
 	return client, nil
 }
 
-func (r *Rediaron) doAddNode(ctx context.Context, name, endpoint, podname, ca, cert, key string, cpu, share int, memory, storage int64, labels map[string]string, numa types.NUMA, numaMemory types.NUMAMemory, volumemap types.VolumeMap) (*types.Node, error) {
+func (r *Rediaron) doAddNode(ctx context.Context, name, endpoint, podname, ca, cert, key string, labels map[string]string) (*types.Node, error) {
 	data := map[string]string{}
 	// 如果有tls的证书需要保存就保存一下
 	if ca != "" {
@@ -219,28 +183,12 @@ func (r *Rediaron) doAddNode(ctx context.Context, name, endpoint, podname, ca, c
 		data[fmt.Sprintf(nodeKeyKey, name)] = key
 	}
 
-	cpumap := types.CPUMap{}
-	for i := 0; i < cpu; i++ {
-		cpumap[strconv.Itoa(i)] = int64(share)
-	}
-
 	node := &types.Node{
 		NodeMeta: types.NodeMeta{
-			Name:           name,
-			Endpoint:       endpoint,
-			Podname:        podname,
-			CPU:            cpumap,
-			MemCap:         memory,
-			StorageCap:     storage,
-			Volume:         volumemap,
-			InitCPU:        cpumap,
-			InitMemCap:     memory,
-			InitStorageCap: storage,
-			InitNUMAMemory: numaMemory,
-			InitVolume:     volumemap,
-			Labels:         labels,
-			NUMA:           numa,
-			NUMAMemory:     numaMemory,
+			Name:     name,
+			Endpoint: endpoint,
+			Podname:  podname,
+			Labels:   labels,
 		},
 		Available: true,
 	}
@@ -259,7 +207,7 @@ func (r *Rediaron) doAddNode(ctx context.Context, name, endpoint, podname, ca, c
 		return nil, err
 	}
 
-	go metrics.Client.SendNodeInfo(node.Metrics())
+	// todo: go metrics.Client.SendNodeInfo(node.Metrics())
 	return node, nil
 }
 

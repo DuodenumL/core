@@ -6,7 +6,6 @@ import (
 
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/strategy"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
@@ -69,20 +68,19 @@ func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bo
 				return err
 			}
 
-			resourceArgs, diffs, err := c.resource.GetNodeResource(ctx, nodename, workloads, fix)
+			// todo: percentage?
+			resourceCapacity, resourceUsage, diffs, err := c.resource.GetNodeResourceInfo(ctx, nodename, workloads, fix)
 			if err != nil {
 				log.Errorf(ctx, "[doGetNodeResource] failed to get node resource, node %v, err: %v", nodename, err)
 				return err
 			}
 
 			nr = &types.NodeResource{
-				Name:         nodename,
-				ResourceArgs: map[string]types.RawParams{},
-				Diffs:        diffs,
-			}
-
-			for plugin, args := range resourceArgs {
-				nr.ResourceArgs[plugin] = types.RawParams(args)
+				Name:             nodename,
+				ResourceCapacity: resourceCapacity,
+				ResourceUsage:    resourceUsage,
+				Diffs:            diffs,
+				Workloads:        workloads,
 			}
 			return nil
 		})
@@ -90,7 +88,7 @@ func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bo
 }
 func (c *Calcium) doGetDeployMap(ctx context.Context, nodes []string, opts *types.DeployOptions) (map[string]int, error) {
 	// get nodes with capacity > 0
-	nodeResourceInfoMap, total, err := c.resource.SelectAvailableNodes(ctx, nodes, resources.RawParams(opts.ResourceOpts))
+	nodeResourceInfoMap, total, err := c.resource.SelectAvailableNodes(ctx, nodes, types.RawParams(opts.ResourceOpts))
 	if err != nil {
 		log.Errorf(ctx, "[doGetDeployMap] failed to select available nodes, nodes %v, err %v", nodes, err)
 		return nil, err

@@ -2,14 +2,9 @@ package strategy
 
 import (
 	"context"
-	"math"
-
-	"github.com/projecteru2/core/log"
-	resourcetypes "github.com/projecteru2/core/resources/types"
-	"github.com/projecteru2/core/types"
-	"github.com/projecteru2/core/utils"
-
 	"github.com/pkg/errors"
+	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/types"
 )
 
 const (
@@ -58,26 +53,4 @@ type Info struct {
 
 	Capacity int
 	Count    int
-}
-
-// NewInfos .
-// TODO strange name, need to revise
-func NewInfos(resourceRequests resourcetypes.ResourceRequests, nodeMap map[string]*types.Node, plans []resourcetypes.ResourcePlans) (strategyInfos []Info) {
-	for nodename, node := range nodeMap {
-		capacity := math.MaxInt64
-		for _, plan := range plans {
-			capacity = utils.Min(capacity, plan.Capacity()[nodename])
-		}
-		if capacity <= 0 {
-			continue
-		}
-
-		strategyInfos = append(strategyInfos, Info{
-			Nodename: nodename,
-			Rate:     resourceRequests.MainRateOnNode(*node),
-			Usage:    resourceRequests.MainUsageOnNode(*node),
-			Capacity: capacity,
-		})
-	}
-	return
 }

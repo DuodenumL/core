@@ -21,14 +21,9 @@ func TestAddNode(t *testing.T) {
 		NodeMeta: types.NodeMeta{Name: name},
 	}
 
-	store := &storemocks.Store{}
-	store.On("AddNode",
-		mock.Anything,
-		mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything, mock.Anything, mock.Anything).Return(node, nil)
-	c.store = store
+	c.store = storemocks.FromTemplate()
+	store := c.store.(*storemocks.MockStore)
+	store.On("AddNode", mock.Anything, mock.Anything).Return(node, nil)
 
 	// fail by validating
 	_, err := c.AddNode(ctx, &types.AddNodeOptions{})
@@ -209,83 +204,6 @@ func TestSetNode(t *testing.T) {
 	setOpts.Key = "hh"
 	n, err = c.SetNode(ctx, setOpts)
 	assert.NoError(t, err)
-	// set numa
-	setOpts.NUMA = types.NUMA{"100": "node1"}
-	n, err = c.SetNode(ctx, setOpts)
-	assert.NoError(t, err)
-	assert.Equal(t, n.NUMA["100"], "node1")
-	// failed by numa node memory < 0
-	n.NUMAMemory = types.NUMAMemory{"node1": 1}
-	n.InitNUMAMemory = types.NUMAMemory{"node1": 2}
-	setOpts.DeltaNUMAMemory = types.NUMAMemory{"node1": -10}
-	n, err = c.SetNode(ctx, setOpts)
-	assert.Error(t, err)
-	// succ set numa node memory
-	n.NUMAMemory = types.NUMAMemory{"node1": 1}
-	n.InitNUMAMemory = types.NUMAMemory{"node1": 2}
-	setOpts.DeltaNUMAMemory = types.NUMAMemory{"node1": -1}
-	n, err = c.SetNode(ctx, setOpts)
-	assert.NoError(t, err)
-	assert.Equal(t, n.NUMAMemory["node1"], int64(0))
-	setOpts.DeltaNUMAMemory = types.NUMAMemory{}
-	// failed set storage
-	n.StorageCap = 1
-	n.InitStorageCap = 2
-	setOpts.DeltaStorage = -10
-	n, err = c.SetNode(ctx, setOpts)
-	assert.Error(t, err)
-	// succ set storage
-	n.StorageCap = 1
-	n.InitStorageCap = 2
-	setOpts.DeltaStorage = -1
-	n, err = c.SetNode(ctx, setOpts)
-	assert.NoError(t, err)
-	assert.Equal(t, n.StorageCap, int64(0))
-	setOpts.DeltaStorage = 0
-	// failed set memory
-	n.MemCap = 1
-	n.InitMemCap = 2
-	setOpts.DeltaMemory = -10
-	n, err = c.SetNode(ctx, setOpts)
-	assert.Error(t, err)
-	// succ set storage
-	n.MemCap = 1
-	n.InitMemCap = 2
-	setOpts.DeltaMemory = -1
-	n, err = c.SetNode(ctx, setOpts)
-	assert.NoError(t, err)
-	assert.Equal(t, n.MemCap, int64(0))
-	setOpts.DeltaMemory = 0
-	// failed by set cpu
-	n.CPU = types.CPUMap{"1": 1}
-	n.InitCPU = types.CPUMap{"1": 2}
-	setOpts.DeltaCPU = types.CPUMap{"1": -10}
-	n, err = c.SetNode(ctx, setOpts)
-	assert.Error(t, err)
-	// succ set cpu, add and del
-	n.CPU = types.CPUMap{"1": 10, "2": 2}
-	n.InitCPU = types.CPUMap{"1": 10, "2": 10}
-	setOpts.DeltaCPU = types.CPUMap{"1": -10, "2": -1, "3": 10}
-	n, err = c.SetNode(ctx, setOpts)
-	assert.NoError(t, err)
-	_, ok := n.CPU["1"]
-	assert.False(t, ok)
-	assert.Equal(t, n.CPU["2"], int64(1))
-	assert.Equal(t, n.InitCPU["2"], int64(9))
-	assert.Equal(t, n.CPU["3"], int64(10))
-	assert.Equal(t, n.InitCPU["3"], int64(10))
-	assert.Equal(t, len(n.CPU), 2)
-	assert.Equal(t, len(n.InitCPU), 2)
-	// succ set volume
-	n.Volume = types.VolumeMap{"/sda1": 10, "/sda2": 20}
-	setOpts.DeltaCPU = nil
-	setOpts.DeltaVolume = types.VolumeMap{"/sda0": 5, "/sda1": 0, "/sda2": -1}
-	n, err = c.SetNode(ctx, setOpts)
-	assert.NoError(t, err)
-	_, ok = n.Volume["/sda1"]
-	assert.False(t, ok)
-	assert.Equal(t, n.Volume["/sda0"], int64(5))
-	assert.Equal(t, n.Volume["/sda2"], int64(19))
 }
 
 func TestFilterNodes(t *testing.T) {

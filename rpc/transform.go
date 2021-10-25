@@ -21,14 +21,6 @@ func toRPCServiceStatus(status types.ServiceStatus) *pb.ServiceStatus {
 	}
 }
 
-func toRPCCPUMap(m types.CPUMap) map[string]int32 {
-	cpu := make(map[string]int32)
-	for label, value := range m {
-		cpu[label] = int32(value)
-	}
-	return cpu
-}
-
 func toRPCPod(p *types.Pod) *pb.Pod {
 	return &pb.Pod{Name: p.Name, Desc: p.Desc}
 }
@@ -39,39 +31,57 @@ func toRPCNetwork(n *enginetypes.Network) *pb.Network {
 
 func toRPCNode(n *types.Node) *pb.Node {
 	return &pb.Node{
-		Name:           n.Name,
-		Endpoint:       n.Endpoint,
-		Podname:        n.Podname,
-		Cpu:            toRPCCPUMap(n.CPU),
-		CpuUsed:        n.CPUUsed,
-		Memory:         n.MemCap,
-		MemoryUsed:     n.InitMemCap - n.MemCap,
-		Storage:        n.StorageCap,
-		StorageUsed:    n.StorageUsed(),
-		Volume:         n.Volume,
-		VolumeUsed:     n.VolumeUsed,
-		Available:      n.Available,
-		Labels:         n.Labels,
-		InitCpu:        toRPCCPUMap(n.InitCPU),
-		InitMemory:     n.InitMemCap,
-		InitStorage:    n.InitStorageCap,
-		InitVolume:     n.InitVolume,
-		Info:           n.NodeInfo,
-		Numa:           n.NUMA,
-		NumaMemory:     n.NUMAMemory,
-		InitNumaMemory: n.InitNUMAMemory,
-		Bypass:         n.Bypass,
+		Name:             n.Name,
+		Endpoint:         n.Endpoint,
+		Podname:          n.Podname,
+		Available:        n.Available,
+		Labels:           n.Labels,
+		Info:             n.NodeInfo,
+		Bypass:           n.Bypass,
+		ResourceCapacity: toRPCRawParamsMap(n.ResourceCapacity),
+		ResourceUsage:    toRPCRawParamsMap(n.ResourceUsage),
 	}
 }
 
+func toRPCRawParams(params types.RawParams) *pb.RawParams {
+	res := &pb.RawParams{RawParams: []*pb.RawParam{}}
+	for key, value := range params {
+		pbRawParam := &pb.RawParam{
+			Key: key,
+		}
+		switch value.(type) {
+		case bool:
+			pbRawParam.Value = &pb.RawParam_Bool{Bool: value.(bool)}
+		case int64:
+			pbRawParam.Value = &pb.RawParam_Int{Int: value.(int64)}
+		case float32:
+			pbRawParam.Value = &pb.RawParam_Float{Float: value.(float32)}
+		case string:
+			pbRawParam.Value = &pb.RawParam_String_{String_: value.(string)}
+		case []string:
+			pbRawParam.Value = &pb.RawParam_StringSlice{StringSlice: &pb.StringSlice{Slice: value.([]string)}}
+		}
+		res.RawParams = append(res.RawParams, pbRawParam)
+	}
+	return res
+}
+
+func toRPCRawParamsMap(m map[string]types.RawParams) map[string]*pb.RawParams {
+	res := map[string]*pb.RawParams{}
+
+	for plugin, params := range m {
+		res[plugin] = toRPCRawParams(params)
+	}
+	return res
+}
+
 func toRPCNodeResource(nr *types.NodeResource) *pb.NodeResource {
+	// todo: change rpc definition
 	return &pb.NodeResource{
-		Name:           nr.Name,
-		CpuPercent:     nr.CPUPercent,
-		MemoryPercent:  nr.MemoryPercent,
-		StoragePercent: nr.StoragePercent,
-		VolumePercent:  nr.VolumePercent,
-		Diffs:          nr.Diffs,
+		Name:             nr.Name,
+		Diffs:            nr.Diffs,
+		ResourceCapacity: toRPCRawParamsMap(nr.ResourceCapacity),
+		ResourceUsage:    toRPCRawParamsMap(nr.ResourceUsage),
 	}
 }
 
@@ -126,43 +136,29 @@ func toCoreSendOptions(b *pb.SendOptions) (*types.SendOptions, error) { // nolin
 
 func toCoreAddNodeOptions(b *pb.AddNodeOptions) *types.AddNodeOptions {
 	r := &types.AddNodeOptions{
-		Nodename:   b.Nodename,
-		Endpoint:   b.Endpoint,
-		Podname:    b.Podname,
-		Ca:         b.Ca,
-		Cert:       b.Cert,
-		Key:        b.Key,
-		CPU:        int(b.Cpu),
-		Share:      int(b.Share),
-		Memory:     b.Memory,
-		Storage:    b.Storage,
-		Labels:     b.Labels,
-		Numa:       b.Numa,
-		NumaMemory: b.NumaMemory,
-		Volume:     b.VolumeMap,
+		Nodename:     b.Nodename,
+		Endpoint:     b.Endpoint,
+		Podname:      b.Podname,
+		Ca:           b.Ca,
+		Cert:         b.Cert,
+		Key:          b.Key,
+		Labels:       b.Labels,
+		ResourceOpts: toCoreRawParams(b.ResourceOpts),
 	}
 	return r
 }
 
 func toCoreSetNodeOptions(b *pb.SetNodeOptions) (*types.SetNodeOptions, error) { // nolint
 	r := &types.SetNodeOptions{
-		Nodename:        b.Nodename,
-		Endpoint:        b.Endpoint,
-		WorkloadsDown:   b.WorkloadsDown,
-		DeltaCPU:        types.CPUMap{},
-		DeltaMemory:     b.DeltaMemory,
-		DeltaStorage:    b.DeltaStorage,
-		DeltaNUMAMemory: b.DeltaNumaMemory,
-		DeltaVolume:     b.DeltaVolume,
-		NUMA:            b.Numa,
-		Labels:          b.Labels,
-		BypassOpt:       types.TriOptions(b.BypassOpt),
-		Ca:              b.Ca,
-		Cert:            b.Cert,
-		Key:             b.Key,
-	}
-	for cpuID, cpuShare := range b.DeltaCpu {
-		r.DeltaCPU[cpuID] = int64(cpuShare)
+		Nodename:      b.Nodename,
+		Endpoint:      b.Endpoint,
+		Ca:            b.Ca,
+		Cert:          b.Cert,
+		Key:           b.Key,
+		WorkloadsDown: b.WorkloadsDown,
+		ResourceOpts:  toCoreRawParams(b.ResourceOpts),
+		Labels:        b.Labels,
+		BypassOpt:     types.TriOptions(b.BypassOpt),
 	}
 	return r, nil
 }
@@ -279,7 +275,6 @@ func toCoreDeployOptions(d *pb.DeployOptions) (*types.DeployOptions, error) {
 		entry.Hook.Force = entrypoint.Hook.Force
 	}
 
-	var err error
 	files := []types.LinuxFile{}
 	for filename, bs := range d.Data {
 		file := types.LinuxFile{
@@ -295,16 +290,6 @@ func toCoreDeployOptions(d *pb.DeployOptions) (*types.DeployOptions, error) {
 		files = append(files, file)
 	}
 
-	vbsLimit, err := types.NewVolumeBindings(d.ResourceOpts.VolumesLimit)
-	if err != nil {
-		return nil, err
-	}
-
-	vbsRequest, err := types.NewVolumeBindings(d.ResourceOpts.VolumesRequest)
-	if err != nil {
-		return nil, err
-	}
-
 	nf := types.NodeFilter{
 		Podname:  d.Podname,
 		Includes: d.Nodenames,
@@ -317,17 +302,7 @@ func toCoreDeployOptions(d *pb.DeployOptions) (*types.DeployOptions, error) {
 	}
 
 	return &types.DeployOptions{
-		ResourceOpts: types.ResourceOptions{
-			CPUQuotaRequest: d.ResourceOpts.CpuQuotaRequest,
-			CPUQuotaLimit:   d.ResourceOpts.CpuQuotaLimit,
-			CPUBind:         d.ResourceOpts.CpuBind,
-			MemoryRequest:   d.ResourceOpts.MemoryRequest,
-			MemoryLimit:     d.ResourceOpts.MemoryLimit,
-			VolumeRequest:   vbsRequest,
-			VolumeLimit:     vbsLimit,
-			StorageRequest:  d.ResourceOpts.StorageRequest + vbsRequest.TotalSize(),
-			StorageLimit:    d.ResourceOpts.StorageLimit + vbsLimit.TotalSize(),
-		},
+		ResourceOpts:   toCoreRawParams(d.ResourceOpts),
 		Name:           d.Name,
 		Entrypoint:     entry,
 		Podname:        d.Podname,
@@ -357,24 +332,14 @@ func toRPCCreateWorkloadMessage(c *types.CreateWorkloadMessage) *pb.CreateWorklo
 		return nil
 	}
 	msg := &pb.CreateWorkloadMessage{
-		Podname:  c.Podname,
-		Nodename: c.Nodename,
-		Id:       c.WorkloadID,
-		Name:     c.WorkloadName,
-		Success:  c.Error == nil,
-		Publish:  utils.EncodePublishInfo(c.Publish),
-		Hook:     utils.MergeHookOutputs(c.Hook),
-		Resource: &pb.Resource{
-			CpuQuotaLimit:   c.CPUQuotaLimit,
-			CpuQuotaRequest: c.CPUQuotaRequest,
-			Cpu:             toRPCCPUMap(c.CPU),
-			MemoryLimit:     c.MemoryLimit,
-			MemoryRequest:   c.MemoryRequest,
-			StorageLimit:    c.StorageLimit,
-			StorageRequest:  c.StorageRequest,
-			VolumesLimit:    c.VolumeLimit.ToStringSlice(false, false),
-			VolumesRequest:  c.VolumeRequest.ToStringSlice(false, false),
-		},
+		Podname:      c.Podname,
+		Nodename:     c.Nodename,
+		Id:           c.WorkloadID,
+		Name:         c.WorkloadName,
+		Success:      c.Error == nil,
+		Publish:      utils.EncodePublishInfo(c.Publish),
+		Hook:         utils.MergeHookOutputs(c.Hook),
+		ResourceArgs: toRPCRawParamsMap(c.ResourceArgs),
 	}
 	if c.Error != nil {
 		msg.Error = c.Error.Error()
@@ -514,44 +479,25 @@ func toRPCWorkload(ctx context.Context, c *types.Workload) (*pb.Workload, error)
 			utils.MakePublishInfo(c.StatusMeta.Networks, meta.Publish),
 		)
 	}
+	resourceArgs := map[string]types.RawParams{}
+	for plugin, args := range c.ResourceArgs {
+		resourceArgs[plugin] = args
+	}
+
 	return &pb.Workload{
-		Id:         c.ID,
-		Podname:    c.Podname,
-		Nodename:   c.Nodename,
-		Name:       c.Name,
-		Privileged: c.Privileged,
-		Publish:    publish,
-		Image:      c.Image,
-		Labels:     c.Labels,
-		Status:     toRPCWorkloadStatus(c.StatusMeta),
-		CreateTime: c.CreateTime,
-		Resource: &pb.Resource{
-			CpuQuotaLimit:     c.CPUQuotaLimit,
-			CpuQuotaRequest:   c.CPUQuotaRequest,
-			Cpu:               toRPCCPUMap(c.CPU),
-			MemoryLimit:       c.MemoryLimit,
-			MemoryRequest:     c.MemoryRequest,
-			StorageLimit:      c.StorageLimit,
-			StorageRequest:    c.StorageRequest,
-			VolumesLimit:      c.VolumeLimit.ToStringSlice(false, false),
-			VolumesRequest:    c.VolumeRequest.ToStringSlice(false, false),
-			VolumePlanLimit:   toRPCVolumePlan(c.VolumePlanLimit),
-			VolumePlanRequest: toRPCVolumePlan(c.VolumePlanRequest),
-		},
-		Env: c.Env,
+		Id:           c.ID,
+		Podname:      c.Podname,
+		Nodename:     c.Nodename,
+		Name:         c.Name,
+		Privileged:   c.Privileged,
+		Publish:      publish,
+		Image:        c.Image,
+		Labels:       c.Labels,
+		Status:       toRPCWorkloadStatus(c.StatusMeta),
+		CreateTime:   c.CreateTime,
+		ResourceArgs: toRPCRawParamsMap(resourceArgs),
+		Env:          c.Env,
 	}, nil
-}
-
-func toRPCVolumePlan(v types.VolumePlan) map[string]*pb.Volume {
-	if v == nil {
-		return nil
-	}
-
-	msg := map[string]*pb.Volume{}
-	for vb, volume := range v {
-		msg[vb.ToString(false)] = &pb.Volume{Volume: volume}
-	}
-	return msg
 }
 
 func toRPCLogStreamMessage(msg *types.LogStreamMessage) *pb.LogStreamMessage {
@@ -608,6 +554,32 @@ func toCoreRemoveImageOptions(opts *pb.RemoveImageOptions) *types.ImageOptions {
 		Step:      int(opts.Step),
 		Prune:     opts.Prune,
 	}
+}
+
+func toCoreRawParams(params *pb.RawParams) map[string]interface{} {
+	if params == nil {
+		return nil
+	}
+	res := map[string]interface{}{}
+	for _, param := range params.RawParams {
+		if param.Value == nil {
+			res[param.Key] = nil
+			continue
+		}
+		switch param.Value.(type) {
+		case *pb.RawParam_Bool:
+			res[param.Key] = param.GetBool()
+		case *pb.RawParam_Int:
+			res[param.Key] = param.GetInt()
+		case *pb.RawParam_Float:
+			res[param.Key] = param.GetFloat()
+		case *pb.RawParam_String_:
+			res[param.Key] = param.GetString_()
+		case *pb.RawParam_StringSlice:
+			res[param.Key] = param.GetStringSlice()
+		}
+	}
+	return res
 }
 
 func toRPCListImageMessage(msg *types.ListImageMessage) *pb.ListImageMessage {

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/resources"
 	resourcetypes "github.com/projecteru2/core/resources/types"
 	"github.com/projecteru2/core/strategy"
 	"github.com/projecteru2/core/types"
@@ -61,7 +60,7 @@ func (c *Calcium) doCalculateCapacity(ctx context.Context, nodes []string, opts 
 	}
 
 	// get nodes with capacity > 0
-	nodeResourceInfoMap, total, err = c.resource.SelectAvailableNodes(ctx, nodes, resources.RawParams(opts.ResourceOpts))
+	nodeResourceInfoMap, total, err = c.resource.SelectAvailableNodes(ctx, nodes, types.RawParams(opts.ResourceOpts))
 	if err != nil {
 		log.Errorf(ctx, "[doGetDeployMap] failed to get available nodes,")
 		return nil, 0, err

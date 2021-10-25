@@ -35,48 +35,50 @@ func (c *Calcium) RemoveWorkload(ctx context.Context, ids []string, force bool, 
 				return func() {
 					defer wg.Done()
 					if err := c.withNodeLocked(ctx, nodename, func(ctx context.Context, node *types.Node) error {
-						for _, workloadID := range workloadIDs {
-							ret := &types.RemoveWorkloadMessage{WorkloadID: workloadID, Success: true, Hook: []*bytes.Buffer{}}
-							if err := c.withWorkloadLocked(ctx, workloadID, func(ctx context.Context, workload *types.Workload) error {
-								return utils.Txn(
-									ctx,
-									// if
-									func(ctx context.Context) error {
-										resourceArgs := map[string]resources.RawParams{}
-										for plugin, args := range workload.ResourceArgs {
-											resourceArgs[plugin] = args
-										}
-										return errors.WithStack(c.resource.UpdateNodeResource(ctx, node.Name, []map[string]resources.RawParams{resourceArgs}, resources.Incr))
-									},
-									// then
-									func(ctx context.Context) (err error) {
-										if err = c.doRemoveWorkload(ctx, workload, force); err != nil {
-											log.Infof(ctx, "[RemoveWorkload] Workload %s removed", workload.ID)
-										}
-										return err
-									},
-									// rollback
-									func(ctx context.Context, failedByCond bool) error {
-										if failedByCond {
-											return nil
-										}
-										resourceArgs := map[string]resources.RawParams{}
-										for plugin, args := range workload.ResourceArgs {
-											resourceArgs[plugin] = args
-										}
-										return errors.WithStack(c.resource.UpdateNodeResource(ctx, node.Name, []map[string]resources.RawParams{resourceArgs}, resources.Decr))
-									},
-									c.config.GlobalTimeout,
-								)
-							}); err != nil {
-								logger.WithField("id", workloadID).Errorf(ctx, "failed to lock workload: %+v", err)
-								ret.Hook = append(ret.Hook, bytes.NewBufferString(err.Error()))
-								ret.Success = false
+						return c.resource.WithNodesLocked(ctx, []string{node.Name}, func(ctx context.Context) error {
+							for _, workloadID := range workloadIDs {
+								ret := &types.RemoveWorkloadMessage{WorkloadID: workloadID, Success: true, Hook: []*bytes.Buffer{}}
+								if err := c.withWorkloadLocked(ctx, workloadID, func(ctx context.Context, workload *types.Workload) error {
+									return utils.Txn(
+										ctx,
+										// if
+										func(ctx context.Context) error {
+											resourceArgs := map[string]types.RawParams{}
+											for plugin, args := range workload.ResourceArgs {
+												resourceArgs[plugin] = args
+											}
+											return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.RawParams{resourceArgs}, resources.Decr))
+										},
+										// then
+										func(ctx context.Context) (err error) {
+											if err = c.doRemoveWorkload(ctx, workload, force); err != nil {
+												log.Infof(ctx, "[RemoveWorkload] Workload %s removed", workload.ID)
+											}
+											return err
+										},
+										// rollback
+										func(ctx context.Context, failedByCond bool) error {
+											if failedByCond {
+												return nil
+											}
+											resourceArgs := map[string]types.RawParams{}
+											for plugin, args := range workload.ResourceArgs {
+												resourceArgs[plugin] = args
+											}
+											return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.RawParams{resourceArgs}, resources.Incr))
+										},
+										c.config.GlobalTimeout,
+									)
+								}); err != nil {
+									logger.WithField("id", workloadID).Errorf(ctx, "failed to lock workload: %+v", err)
+									ret.Hook = append(ret.Hook, bytes.NewBufferString(err.Error()))
+									ret.Success = false
+								}
+								ch <- ret
 							}
-							ch <- ret
-						}
-						c.doRemapResourceAndLog(ctx, logger, node)
-						return nil
+							c.doRemapResourceAndLog(ctx, logger, node)
+							return nil
+						})
 					}); err != nil {
 						logger.WithField("nodename", nodename).Errorf(ctx, "failed to lock node: %+v", err)
 						ch <- &types.RemoveWorkloadMessage{Success: false}

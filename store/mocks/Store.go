@@ -555,20 +555,6 @@ func (_m *Store) StartEphemeral(ctx context.Context, path string, heartbeat time
 	return r0, r1, r2
 }
 
-// UpdateNodeResource provides a mock function with given fields: ctx, node, resource, action
-func (_m *Store) UpdateNodeResource(ctx context.Context, node *types.Node, resource *types.ResourceMeta, action string) error {
-	ret := _m.Called(ctx, node, resource, action)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Node, *types.ResourceMeta, string) error); ok {
-		r0 = rf(ctx, node, resource, action)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // UpdateNodes provides a mock function with given fields: _a0, _a1
 func (_m *Store) UpdateNodes(_a0 context.Context, _a1 ...*types.Node) error {
 	_va := make([]interface{}, len(_a1))

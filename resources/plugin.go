@@ -11,12 +11,11 @@ import (
 	coretypes "github.com/projecteru2/core/types"
 )
 
-type RawParams map[string]interface{}
 
-// Incr increase resource
+// Incr increase
 const Incr = true
 
-// Decr decrease resource
+// Decr decrease
 const Decr = false
 
 // Plugin resource plugin
@@ -28,28 +27,45 @@ type Plugin interface {
 	UnlockNodes(ctx context.Context, nodes []string) error
 
 	// SelectAvailableNodes returns available nodes and total capacity
-	SelectAvailableNodes(ctx context.Context, nodes []string, requestOpts RawParams) (map[string]*types.NodeResourceInfo, int, error)
+	SelectAvailableNodes(ctx context.Context, nodes []string, resourceOpts coretypes.RawParams) (map[string]*types.NodeResourceInfo, int, error)
 
-	// SetNodeResource sets the node's resource info
-	SetNodeResource(ctx context.Context, node string, rawRequest RawParams) error
-
-	// GetNodeResource returns resource info of the node, format: {"cpu": 2}
+	// GetNodeResourceInfo returns total resource info and available resource info of the node, format: {"cpu": 2}
 	// also returns diffs, format: ["node.VolumeUsed != sum(workload.VolumeRequest"]
-	GetNodeResource(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (RawParams, []string, error)
+	GetNodeResourceInfo(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (coretypes.RawParams, coretypes.RawParams, []string, error)
+
+	// SetNodeResourceInfo sets both total node resource info and allocated resource info
+	// used for rollback of RemoveNode
+	// notice: here uses absolute values, not delta values
+	SetNodeResourceInfo(ctx context.Context, resourceCapacity coretypes.RawParams, resourceUsage coretypes.RawParams) error
 
 	// Alloc allocates resource, returns engine args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
 	// also returns resource args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
-	Alloc(ctx context.Context, node string, deployCount int, rawRequest RawParams) ([]RawParams, []RawParams, error)
+	// pure calculation
+	Alloc(ctx context.Context, node string, deployCount int, resourceOpts coretypes.RawParams) ([]coretypes.RawParams, []coretypes.RawParams, error)
 
 	// Realloc reallocates resource, returns engine args and resource args for each workload.
 	// should return error if resource of some node is not enough for the realloc operation.
-	Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts RawParams) (map[string]RawParams, map[string]RawParams, error)
+	// pure calculation
+	Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (map[string]coretypes.RawParams, map[string]coretypes.RawParams, error)
 
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
-	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]RawParams, error)
+	// pure calculation
+	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]coretypes.RawParams, error)
 
-	// UpdateNodeResource rollbacks resource
-	UpdateNodeResource(ctx context.Context, node string, resourceArgs []RawParams, direction bool) error
+	// Diff returns dstResourceArgs - srcResourceArgs
+	// e.g.: src: {"cpu": 1.2}, dst: {"cpu": 1.5}, result: {"cpu": 0.3}
+	// pure calculation
+	Diff(ctx context.Context, srcResourceArgs coretypes.RawParams, dstResourceArgs coretypes.RawParams) (coretypes.RawParams, error)
+
+	// UpdateNodeResourceUsage updates node resource usage
+	UpdateNodeResourceUsage(ctx context.Context, node string, resourceArgs []coretypes.RawParams, direction bool) error
+
+	// UpdateNodeResourceCapacity updates node resource capacity
+	UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts coretypes.RawParams, direction bool) error
+
+	// AddNode adds a node with requested resource, returns resource capacity and (empty) resource usage
+	// should return error if the node already exists
+	AddNode(ctx context.Context, node string, resourceOpts coretypes.RawParams) (coretypes.RawParams, coretypes.RawParams, error)
 
 	// RemoveNode removes node
 	RemoveNode(ctx context.Context, node string) error
@@ -99,37 +115,52 @@ func (bp *BinaryPlugin) UnlockNodes(ctx context.Context, nodes []string) (err er
 	panic("implement me")
 }
 
-// GetAvailableNodes .
-func (bp *BinaryPlugin) SelectAvailableNodes(ctx context.Context, nodes []string, rawRequest RawParams) (map[string]*types.NodeResourceInfo, int, error) {
+// SelectAvailableNodes .
+func (bp *BinaryPlugin) SelectAvailableNodes(ctx context.Context, nodes []string, resourceOpts coretypes.RawParams) (map[string]*types.NodeResourceInfo, int, error) {
 	panic("implement me")
 }
 
-// GetNodeResource .
-func (bp *BinaryPlugin) GetNodeResource(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (RawParams, []string, error) {
+// GetNodeResourceInfo .
+func (bp *BinaryPlugin) GetNodeResourceInfo(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (coretypes.RawParams, coretypes.RawParams, []string, error) {
+	panic("implement me")
+}
+
+// SetNodeResourceInfo .
+func (bp *BinaryPlugin) SetNodeResourceInfo(ctx context.Context, resourceCapacity coretypes.RawParams, resourceUsage coretypes.RawParams) error {
 	panic("implement me")
 }
 
 // Alloc .
-func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int, rawRequest RawParams) ([]RawParams, []RawParams, error) {
+func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int, resourceOpts coretypes.RawParams) ([]coretypes.RawParams, []coretypes.RawParams, error) {
 	panic("implement me")
 }
 
-func (bp *BinaryPlugin) Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts RawParams) (map[string]RawParams, map[string]RawParams, error) {
+func (bp *BinaryPlugin) Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (map[string]coretypes.RawParams, map[string]coretypes.RawParams, error) {
 	panic("implement me")
 }
 
-// UpdateNodeResource .
-func (bp *BinaryPlugin) UpdateNodeResource(ctx context.Context, node string, resourceArgs []RawParams, direction bool) error {
+// UpdateNodeResourceUsage .
+func (bp *BinaryPlugin) UpdateNodeResourceUsage(ctx context.Context, node string, resourceArgs []coretypes.RawParams, direction bool) error {
+	panic("implement me")
+}
+
+// UpdateNodeResourceCapacity .
+func (bp *BinaryPlugin) UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts coretypes.RawParams, direction bool) error {
+	panic("implement me")
+}
+
+// Diff .
+func (bp *BinaryPlugin) Diff(ctx context.Context, srcResourceArgs coretypes.RawParams, dstResourceArgs coretypes.RawParams) (coretypes.RawParams, error) {
 	panic("implement me")
 }
 
 // Remap .
-func (bp *BinaryPlugin) Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]RawParams, error) {
+func (bp *BinaryPlugin) Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]coretypes.RawParams, error) {
 	panic("implement me")
 }
 
-// SetNodeResource .
-func (bp *BinaryPlugin) SetNodeResource(ctx context.Context, node string, rawRequest RawParams) error {
+// AddNode .
+func (bp *BinaryPlugin) AddNode(ctx context.Context, node string, resourceOpts coretypes.RawParams) (coretypes.RawParams, coretypes.RawParams, error) {
 	panic("implement me")
 }
 

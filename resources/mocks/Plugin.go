@@ -5,7 +5,6 @@ package mocks
 import (
 	context "context"
 
-	resources "github.com/projecteru2/core/resources"
 	mock "github.com/stretchr/testify/mock"
 
 	resourcestypes "github.com/projecteru2/core/resources/types"
@@ -18,30 +17,62 @@ type Plugin struct {
 	mock.Mock
 }
 
-// Alloc provides a mock function with given fields: ctx, node, deployCount, rawRequest
-func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, rawRequest resources.RawParams) ([]resources.RawParams, []resources.RawParams, error) {
-	ret := _m.Called(ctx, node, deployCount, rawRequest)
+// AddNode provides a mock function with given fields: ctx, node, rawRequest
+func (_m *Plugin) AddNode(ctx context.Context, node string, rawRequest types.RawParams) (types.RawParams, types.RawParams, error) {
+	ret := _m.Called(ctx, node, rawRequest)
 
-	var r0 []resources.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, string, int, resources.RawParams) []resources.RawParams); ok {
-		r0 = rf(ctx, node, deployCount, rawRequest)
+	var r0 types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, string, types.RawParams) types.RawParams); ok {
+		r0 = rf(ctx, node, rawRequest)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]resources.RawParams)
+			r0 = ret.Get(0).(types.RawParams)
 		}
 	}
 
-	var r1 []resources.RawParams
-	if rf, ok := ret.Get(1).(func(context.Context, string, int, resources.RawParams) []resources.RawParams); ok {
-		r1 = rf(ctx, node, deployCount, rawRequest)
+	var r1 types.RawParams
+	if rf, ok := ret.Get(1).(func(context.Context, string, types.RawParams) types.RawParams); ok {
+		r1 = rf(ctx, node, rawRequest)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]resources.RawParams)
+			r1 = ret.Get(1).(types.RawParams)
 		}
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, string, int, resources.RawParams) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, string, types.RawParams) error); ok {
+		r2 = rf(ctx, node, rawRequest)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// Alloc provides a mock function with given fields: ctx, node, deployCount, rawRequest
+func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, rawRequest types.RawParams) ([]types.RawParams, []types.RawParams, error) {
+	ret := _m.Called(ctx, node, deployCount, rawRequest)
+
+	var r0 []types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, types.RawParams) []types.RawParams); ok {
+		r0 = rf(ctx, node, deployCount, rawRequest)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]types.RawParams)
+		}
+	}
+
+	var r1 []types.RawParams
+	if rf, ok := ret.Get(1).(func(context.Context, string, int, types.RawParams) []types.RawParams); ok {
+		r1 = rf(ctx, node, deployCount, rawRequest)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]types.RawParams)
+		}
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, string, int, types.RawParams) error); ok {
 		r2 = rf(ctx, node, deployCount, rawRequest)
 	} else {
 		r2 = ret.Error(2)
@@ -50,36 +81,68 @@ func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, rawRe
 	return r0, r1, r2
 }
 
-// GetNodeResource provides a mock function with given fields: ctx, node, workloads, fix
-func (_m *Plugin) GetNodeResource(ctx context.Context, node string, workloads []*types.Workload, fix bool) (resources.RawParams, []string, error) {
+// Diff provides a mock function with given fields: ctx, srcResourceArgs, dstResourceArgs
+func (_m *Plugin) Diff(ctx context.Context, srcResourceArgs types.RawParams, dstResourceArgs types.RawParams) (types.RawParams, error) {
+	ret := _m.Called(ctx, srcResourceArgs, dstResourceArgs)
+
+	var r0 types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, types.RawParams, types.RawParams) types.RawParams); ok {
+		r0 = rf(ctx, srcResourceArgs, dstResourceArgs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(types.RawParams)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, types.RawParams, types.RawParams) error); ok {
+		r1 = rf(ctx, srcResourceArgs, dstResourceArgs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetNodeResourceInfo provides a mock function with given fields: ctx, node, workloads, fix
+func (_m *Plugin) GetNodeResourceInfo(ctx context.Context, node string, workloads []*types.Workload, fix bool) (types.RawParams, types.RawParams, []string, error) {
 	ret := _m.Called(ctx, node, workloads, fix)
 
-	var r0 resources.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload, bool) resources.RawParams); ok {
+	var r0 types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload, bool) types.RawParams); ok {
 		r0 = rf(ctx, node, workloads, fix)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(resources.RawParams)
+			r0 = ret.Get(0).(types.RawParams)
 		}
 	}
 
-	var r1 []string
-	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload, bool) []string); ok {
+	var r1 types.RawParams
+	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload, bool) types.RawParams); ok {
 		r1 = rf(ctx, node, workloads, fix)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).([]string)
+			r1 = ret.Get(1).(types.RawParams)
 		}
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, string, []*types.Workload, bool) error); ok {
+	var r2 []string
+	if rf, ok := ret.Get(2).(func(context.Context, string, []*types.Workload, bool) []string); ok {
 		r2 = rf(ctx, node, workloads, fix)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).([]string)
+		}
 	}
 
-	return r0, r1, r2
+	var r3 error
+	if rf, ok := ret.Get(3).(func(context.Context, string, []*types.Workload, bool) error); ok {
+		r3 = rf(ctx, node, workloads, fix)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // LockNodes provides a mock function with given fields: ctx, nodes
@@ -111,29 +174,29 @@ func (_m *Plugin) Name() string {
 }
 
 // Realloc provides a mock function with given fields: ctx, workloads, resourceOpts
-func (_m *Plugin) Realloc(ctx context.Context, workloads []*types.Workload, resourceOpts resources.RawParams) (map[string]resources.RawParams, map[string]resources.RawParams, error) {
+func (_m *Plugin) Realloc(ctx context.Context, workloads []*types.Workload, resourceOpts types.RawParams) (map[string]types.RawParams, map[string]types.RawParams, error) {
 	ret := _m.Called(ctx, workloads, resourceOpts)
 
-	var r0 map[string]resources.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, []*types.Workload, resources.RawParams) map[string]resources.RawParams); ok {
+	var r0 map[string]types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, []*types.Workload, types.RawParams) map[string]types.RawParams); ok {
 		r0 = rf(ctx, workloads, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]resources.RawParams)
+			r0 = ret.Get(0).(map[string]types.RawParams)
 		}
 	}
 
-	var r1 map[string]resources.RawParams
-	if rf, ok := ret.Get(1).(func(context.Context, []*types.Workload, resources.RawParams) map[string]resources.RawParams); ok {
+	var r1 map[string]types.RawParams
+	if rf, ok := ret.Get(1).(func(context.Context, []*types.Workload, types.RawParams) map[string]types.RawParams); ok {
 		r1 = rf(ctx, workloads, resourceOpts)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(map[string]resources.RawParams)
+			r1 = ret.Get(1).(map[string]types.RawParams)
 		}
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, []*types.Workload, resources.RawParams) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, []*types.Workload, types.RawParams) error); ok {
 		r2 = rf(ctx, workloads, resourceOpts)
 	} else {
 		r2 = ret.Error(2)
@@ -143,15 +206,15 @@ func (_m *Plugin) Realloc(ctx context.Context, workloads []*types.Workload, reso
 }
 
 // Remap provides a mock function with given fields: ctx, node, workloadMap
-func (_m *Plugin) Remap(ctx context.Context, node string, workloadMap map[string]*types.Workload) (map[string]resources.RawParams, error) {
+func (_m *Plugin) Remap(ctx context.Context, node string, workloadMap map[string]*types.Workload) (map[string]types.RawParams, error) {
 	ret := _m.Called(ctx, node, workloadMap)
 
-	var r0 map[string]resources.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]*types.Workload) map[string]resources.RawParams); ok {
+	var r0 map[string]types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]*types.Workload) map[string]types.RawParams); ok {
 		r0 = rf(ctx, node, workloadMap)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]resources.RawParams)
+			r0 = ret.Get(0).(map[string]types.RawParams)
 		}
 	}
 
@@ -180,11 +243,11 @@ func (_m *Plugin) RemoveNode(ctx context.Context, node string) error {
 }
 
 // SelectAvailableNodes provides a mock function with given fields: ctx, nodes, requestOpts
-func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, requestOpts resources.RawParams) (map[string]*resourcestypes.NodeResourceInfo, int, error) {
+func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, requestOpts types.RawParams) (map[string]*resourcestypes.NodeResourceInfo, int, error) {
 	ret := _m.Called(ctx, nodes, requestOpts)
 
 	var r0 map[string]*resourcestypes.NodeResourceInfo
-	if rf, ok := ret.Get(0).(func(context.Context, []string, resources.RawParams) map[string]*resourcestypes.NodeResourceInfo); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []string, types.RawParams) map[string]*resourcestypes.NodeResourceInfo); ok {
 		r0 = rf(ctx, nodes, requestOpts)
 	} else {
 		if ret.Get(0) != nil {
@@ -193,14 +256,14 @@ func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, requ
 	}
 
 	var r1 int
-	if rf, ok := ret.Get(1).(func(context.Context, []string, resources.RawParams) int); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, []string, types.RawParams) int); ok {
 		r1 = rf(ctx, nodes, requestOpts)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, []string, resources.RawParams) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, []string, types.RawParams) error); ok {
 		r2 = rf(ctx, nodes, requestOpts)
 	} else {
 		r2 = ret.Error(2)
@@ -209,13 +272,13 @@ func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, requ
 	return r0, r1, r2
 }
 
-// SetNodeResource provides a mock function with given fields: ctx, node, rawRequest
-func (_m *Plugin) SetNodeResource(ctx context.Context, node string, rawRequest resources.RawParams) error {
-	ret := _m.Called(ctx, node, rawRequest)
+// SetNodeResourceInfo provides a mock function with given fields: ctx, resourceCapacity, resourceUsage
+func (_m *Plugin) SetNodeResourceInfo(ctx context.Context, resourceCapacity types.RawParams, resourceUsage types.RawParams) error {
+	ret := _m.Called(ctx, resourceCapacity, resourceUsage)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, resources.RawParams) error); ok {
-		r0 = rf(ctx, node, rawRequest)
+	if rf, ok := ret.Get(0).(func(context.Context, types.RawParams, types.RawParams) error); ok {
+		r0 = rf(ctx, resourceCapacity, resourceUsage)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -237,12 +300,26 @@ func (_m *Plugin) UnlockNodes(ctx context.Context, nodes []string) error {
 	return r0
 }
 
-// UpdateNodeResource provides a mock function with given fields: ctx, node, resourceArgs, direction
-func (_m *Plugin) UpdateNodeResource(ctx context.Context, node string, resourceArgs []resources.RawParams, direction bool) error {
+// UpdateNodeResourceCapacity provides a mock function with given fields: ctx, node, resourceOpts, direction
+func (_m *Plugin) UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts types.RawParams, direction bool) error {
+	ret := _m.Called(ctx, node, resourceOpts, direction)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, types.RawParams, bool) error); ok {
+		r0 = rf(ctx, node, resourceOpts, direction)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateNodeResourceUsage provides a mock function with given fields: ctx, node, resourceArgs, direction
+func (_m *Plugin) UpdateNodeResourceUsage(ctx context.Context, node string, resourceArgs []types.RawParams, direction bool) error {
 	ret := _m.Called(ctx, node, resourceArgs, direction)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []resources.RawParams, bool) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, []types.RawParams, bool) error); ok {
 		r0 = rf(ctx, node, resourceArgs, direction)
 	} else {
 		r0 = ret.Error(0)
