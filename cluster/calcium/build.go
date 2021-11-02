@@ -76,7 +76,7 @@ func (c *Calcium) selectBuildNode(ctx context.Context) (*types.Node, error) {
 	}
 	// get idle max node
 	// node, err := c.scheduler.MaxIdleNode(nodes)
-	// todo: node, err := c.resource.MaxIdleNode(nodes)
+	// TODO: node, err := c.resource.MaxIdleNode(nodes)
 	node := nodes[0]
 	return node, nil
 }

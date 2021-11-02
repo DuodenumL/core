@@ -29,7 +29,7 @@ type Config struct {
 	MaxConcurrency      int64         `yaml:"max_concurrency" default:"20"`                  // concurrently call single runtime in the same time
 	Store               string        `yaml:"store" default:"etcd"`                          // store type
 
-	ResourcePluginDir     string        `yaml:"resource_plugin_dir" default:"/etc/eru/resource_plugins"` // resource plugins path
+	ResourcePluginsDir    string        `yaml:"resource_plugins_dir" default:"/etc/eru/resource_plugins"` // resource plugins path
 	ResourcePluginTimeout time.Duration `yaml:"resource_plugin_timeout" default:"30s"`                   // timeout for calling resource plugins
 
 	Auth       AuthConfig `yaml:"auth"` // grpc auth

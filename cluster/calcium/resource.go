@@ -68,7 +68,7 @@ func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bo
 				return err
 			}
 
-			// todo: percentage?
+			// TODO: percentage?
 			resourceCapacity, resourceUsage, diffs, err := c.resource.GetNodeResourceInfo(ctx, nodename, workloads, fix)
 			if err != nil {
 				log.Errorf(ctx, "[doGetNodeResource] failed to get node resource, node %v, err: %v", nodename, err)

@@ -96,7 +96,7 @@ func (n *Node) Metrics() *NodeMetrics {
 	return &NodeMetrics{
 		Name:    n.Name,
 		Podname: n.Podname,
-		// todo: resource args
+		// TODO: resource args
 	}
 }
 

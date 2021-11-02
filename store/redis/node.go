@@ -207,7 +207,7 @@ func (r *Rediaron) doAddNode(ctx context.Context, name, endpoint, podname, ca, c
 		return nil, err
 	}
 
-	// todo: go metrics.Client.SendNodeInfo(node.Metrics())
+	// TODO: go metrics.Client.SendNodeInfo(node.Metrics())
 	return node, nil
 }
 

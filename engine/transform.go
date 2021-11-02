@@ -11,8 +11,7 @@ func MakeVirtualizationResource(engineArgs map[string]interface{}) (types.Virtua
 	if err != nil {
 		return res, err
 	}
-	err = json.Unmarshal(body, &res)
-	if err != nil {
+	if err = json.Unmarshal(body, &res); err != nil {
 		return res, err
 	}
 	res.EngineArgs = engineArgs

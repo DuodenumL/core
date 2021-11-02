@@ -113,7 +113,7 @@ func serve(c *cli.Context) error {
 	})
 
 	if config.Profile != "" {
-		// todo: http.Handle("/metrics", metrics.Client.ResourceMiddleware(cluster)(promhttp.Handler()))
+		// TODO: http.Handle("/metrics", metrics.Client.ResourceMiddleware(cluster)(promhttp.Handler()))
 		utils.SentryGo(func() {
 			if err := http.ListenAndServe(config.Profile, nil); err != nil {
 				log.Errorf(nil, "[main] start http failed %v", err) //nolint

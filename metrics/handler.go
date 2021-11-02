@@ -2,7 +2,7 @@ package metrics
 
 //
 //// ResourceMiddleware to make sure update resource correct
-//// todo: remove resource types
+//// TODO: remove resource types
 //func (m *Metrics) ResourceMiddleware(cluster cluster.Cluster) func(http.Handler) http.Handler {
 //	return func(h http.Handler) http.Handler {
 //		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

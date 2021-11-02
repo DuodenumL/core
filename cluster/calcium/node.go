@@ -76,7 +76,7 @@ func (c *Calcium) RemoveNode(ctx context.Context, nodename string) error {
 			func(ctx context.Context) error {
 				return errors.WithStack(c.resource.RemoveNode(ctx, nodename))
 			},
-			// todo: rollback
+			// TODO: rollback
 			func(ctx context.Context, b bool) error {
 				return nil
 			},

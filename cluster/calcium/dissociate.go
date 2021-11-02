@@ -53,7 +53,7 @@ func (c *Calcium) DissociateWorkload(ctx context.Context, ids []string) (chan *t
 								for plugin, args := range workload.ResourceArgs {
 									resourceArgs[plugin] = args
 								}
-								// todo: double code
+								// TODO: double code
 								return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.RawParams{resourceArgs}, resources.Incr))
 							},
 							c.config.GlobalTimeout,

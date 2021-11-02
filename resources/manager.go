@@ -29,10 +29,10 @@ func NewPluginManager(ctx context.Context, config types.Config) *PluginManager {
 // LoadPlugins .
 func (pm *PluginManager) LoadPlugins(ctx context.Context) {
 	pm.plugins = []Plugin{}
-	if len(pm.config.ResourcePluginDir) > 0 {
-		pluginFiles, err := utils.ListAllExecutableFiles(pm.config.ResourcePluginDir)
+	if len(pm.config.ResourcePluginsDir) > 0 {
+		pluginFiles, err := utils.ListAllExecutableFiles(pm.config.ResourcePluginsDir)
 		if err != nil {
-			log.Errorf(ctx, "[LoadPlugins] failed to list all executable files dir: %v, err: %v", pm.config.ResourcePluginDir, err)
+			log.Errorf(ctx, "[LoadPlugins] failed to list all executable files dir: %v, err: %v", pm.config.ResourcePluginsDir, err)
 			return
 		}
 
@@ -64,13 +64,13 @@ func (pm *PluginManager) callPlugins(plugins []Plugin, f func(Plugin)) {
 func (pm *PluginManager) LockNodes(ctx context.Context, nodes []string) error {
 	locked := make(chan Plugin, len(pm.plugins))
 
-	return utils.PCR(ctx,
+	return utils.Pcr(ctx,
 		// prepare: do nothing
-		func() error {
+		func(ctx context.Context) error {
 			return nil
 		},
 		// commit: try to lock nodes on each plugin
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				if err := plugin.LockNodes(ctx, nodes); err != nil {
 					log.Errorf(ctx, "[LockNodes] plugin %v failed to lock nodes %v, err: %v", plugin.Name(), nodes, err)
@@ -88,7 +88,7 @@ func (pm *PluginManager) LockNodes(ctx context.Context, nodes []string) error {
 			return nil
 		},
 		// rollback: unlock the locks
-		func() error {
+		func(ctx context.Context) error {
 			rollbackErrChan := make(chan error, len(pm.plugins))
 			rollbackPlugins := []Plugin{}
 			for plugin := range locked {
@@ -107,6 +107,7 @@ func (pm *PluginManager) LockNodes(ctx context.Context, nodes []string) error {
 			}
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -114,13 +115,13 @@ func (pm *PluginManager) LockNodes(ctx context.Context, nodes []string) error {
 func (pm *PluginManager) UnlockNodes(ctx context.Context, nodes []string) error {
 	unlocked := make(chan Plugin, len(pm.plugins))
 
-	return utils.PCR(ctx,
+	return utils.Pcr(ctx,
 		// prepare: do nothing
-		func() error {
+		func(ctx context.Context) error {
 			return nil
 		},
 		// commit: try to unlock nodes on each plugin
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				if err := plugin.UnlockNodes(ctx, nodes); err != nil {
 					log.Errorf(ctx, "[UnlockNodes] plugin %v failed to unlock nodes %v, err: %v", plugin.Name(), nodes, err)
@@ -138,9 +139,10 @@ func (pm *PluginManager) UnlockNodes(ctx context.Context, nodes []string) error 
 			return nil
 		},
 		// rollback: do nothing
-		func() error {
+		func(ctx context.Context) error {
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -261,9 +263,9 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 	engineArgsChan := make(chan []types.RawParams, len(pm.plugins))
 	mutex := &sync.Mutex{}
 
-	return resEngineArgs, resResourceArgs, utils.PCR(ctx,
+	return resEngineArgs, resResourceArgs, utils.Pcr(ctx,
 		// prepare: calculate engine args and resource args
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				engineArgs, resourceArgs, err := plugin.Alloc(ctx, node, deployCount, resourceOpts)
 
@@ -299,7 +301,7 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 			return nil
 		},
 		// commit: update node resources
-		func() error {
+		func(ctx context.Context) error {
 			if err := pm.UpdateNodeResourceUsage(ctx, node, resResourceArgs, Incr); err != nil {
 				log.Errorf(ctx, "[Alloc] failed to update node resource, err: %v", err)
 				return err
@@ -307,9 +309,10 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 			return nil
 		},
 		// rollback: do nothing
-		func() error {
+		func(ctx context.Context) error {
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -363,9 +366,9 @@ func (pm *PluginManager) Realloc(ctx context.Context, workloads []*types.Workloa
 	var rollbackNodeChan chan string
 	mutex := &sync.Mutex{}
 
-	return engineArgsMap, resourceArgsMap, utils.PCR(ctx,
+	return engineArgsMap, resourceArgsMap, utils.Pcr(ctx,
 		// prepare: calculate engine args and resource args
-		func() error {
+		func(ctx context.Context) error {
 			for _, workload := range workloads {
 				engineArgsMap[workload.ID] = types.RawParams{}
 				resourceArgsMap[workload.ID] = map[string]types.RawParams{}
@@ -414,7 +417,7 @@ func (pm *PluginManager) Realloc(ctx context.Context, workloads []*types.Workloa
 			return nil
 		},
 		// commit: update node resource
-		func() error {
+		func(ctx context.Context) error {
 			for _, workload := range workloads {
 				nodeResourceArgsMap[workload.Nodename] = append(nodeResourceArgsMap[workload.Nodename], diffResourceArgsMap[workload.ID])
 			}
@@ -442,7 +445,7 @@ func (pm *PluginManager) Realloc(ctx context.Context, workloads []*types.Workloa
 			return nil
 		},
 		// rollback: returns the changed resource
-		func() error {
+		func(ctx context.Context) error {
 			wg := &sync.WaitGroup{}
 			wg.Add(len(rollbackNodeChan))
 
@@ -464,6 +467,7 @@ func (pm *PluginManager) Realloc(ctx context.Context, workloads []*types.Workloa
 			}
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -509,10 +513,10 @@ func (pm *PluginManager) UpdateNodeResourceUsage(ctx context.Context, node strin
 	rollbackPluginChan := make(chan Plugin, len(pm.plugins))
 	errChan := make(chan error, len(pm.plugins))
 
-	return utils.PCR(ctx,
+	return utils.Pcr(ctx,
 		// prepare: convert []map[plugin]resourceArgs to map[plugin][]resourceArgs
 		// [{"cpu-plugin": {"cpu": 1}}, {"cpu-plugin": {"cpu": 1}}] -> {"cpu-plugin": [{"cpu": 1}, {"cpu": 1}]}
-		func() error {
+		func(ctx context.Context) error {
 			for _, workloadResourceArgs := range resourceArgs {
 				for plugin, rawParams := range workloadResourceArgs {
 					if _, ok := resourceArgsMap[plugin]; !ok {
@@ -524,7 +528,7 @@ func (pm *PluginManager) UpdateNodeResourceUsage(ctx context.Context, node strin
 			return nil
 		},
 		// commit: call plugins to update node resource
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				resourceArgs, ok := resourceArgsMap[plugin.Name()]
 				if !ok {
@@ -548,7 +552,7 @@ func (pm *PluginManager) UpdateNodeResourceUsage(ctx context.Context, node strin
 			return nil
 		},
 		// rollback: update the rollback resource args in reverse
-		func() error {
+		func(ctx context.Context) error {
 			plugins := []Plugin{}
 			for plugin := range rollbackPluginChan {
 				plugins = append(plugins, plugin)
@@ -569,6 +573,7 @@ func (pm *PluginManager) UpdateNodeResourceUsage(ctx context.Context, node strin
 			}
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -577,13 +582,13 @@ func (pm *PluginManager) UpdateNodeResourceUsage(ctx context.Context, node strin
 func (pm *PluginManager) UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts types.RawParams, direction bool) error {
 	rollbackPluginChan := make(chan Plugin, len(pm.plugins))
 
-	return utils.PCR(ctx,
+	return utils.Pcr(ctx,
 		// prepare: do nothing
-		func() error {
+		func(ctx context.Context) error {
 			return nil
 		},
 		// commit: call plugins to update node resource capacity
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				if err := plugin.UpdateNodeResourceCapacity(ctx, node, resourceOpts, direction); err != nil {
 					log.Errorf(ctx, "[UpdateNodeResourceCapacity] node %v plugin %v failed to update node resource capacity, opts %+v, err %v", node, plugin.Name(), resourceOpts, err)
@@ -600,7 +605,7 @@ func (pm *PluginManager) UpdateNodeResourceCapacity(ctx context.Context, node st
 			return nil
 		},
 		// rollback: update node resource capacity in reverse
-		func() error {
+		func(ctx context.Context) error {
 			// todo: place the logic in a function
 			plugins := []Plugin{}
 			for plugin := range rollbackPluginChan {
@@ -622,6 +627,7 @@ func (pm *PluginManager) UpdateNodeResourceCapacity(ctx context.Context, node st
 			}
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -671,13 +677,13 @@ func (pm *PluginManager) AddNode(ctx context.Context, node string, resourceOpts 
 
 	mutex := &sync.Mutex{}
 
-	return resResourceCapacity, resResourceUsage, utils.PCR(ctx,
+	return resResourceCapacity, resResourceUsage, utils.Pcr(ctx,
 		// prepare: do nothing
-		func() error {
+		func(ctx context.Context) error {
 			return nil
 		},
 		// commit: call plugins to add the node
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				if resourceCapacity, resourceUsage, err := plugin.AddNode(ctx, node, resourceOpts); err != nil {
 					log.Errorf(ctx, "[AddNode] node %v plugin %v failed to add node, req: %v, err: %v", node, plugin.Name(), resourceOpts, err)
@@ -698,7 +704,7 @@ func (pm *PluginManager) AddNode(ctx context.Context, node string, resourceOpts 
 			return nil
 		},
 		// rollback: remove node
-		func() error {
+		func(ctx context.Context) error {
 			errChan := make(chan error, len(pm.plugins))
 
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
@@ -717,6 +723,7 @@ func (pm *PluginManager) AddNode(ctx context.Context, node string, resourceOpts 
 			}
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }
 
@@ -726,9 +733,9 @@ func (pm *PluginManager) RemoveNode(ctx context.Context, node string) error {
 	var resourceUsage map[string]types.RawParams
 	rollbackPluginChan := make(chan Plugin, len(pm.plugins))
 
-	return utils.PCR(ctx,
+	return utils.Pcr(ctx,
 		// prepare: get node resource
-		func() error {
+		func(ctx context.Context) error {
 			var err error
 			resourceCapacity, resourceUsage, _, err = pm.GetNodeResourceInfo(ctx, node, nil, false)
 			if err != nil {
@@ -738,7 +745,7 @@ func (pm *PluginManager) RemoveNode(ctx context.Context, node string) error {
 			return nil
 		},
 		// commit: remove node
-		func() error {
+		func(ctx context.Context) error {
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
 				if err := plugin.RemoveNode(ctx, node); err != nil {
 					log.Errorf(ctx, "[AddNode] plugin %v failed to remove node, err: %v", plugin.Name(), node, err)
@@ -755,7 +762,7 @@ func (pm *PluginManager) RemoveNode(ctx context.Context, node string) error {
 			return nil
 		},
 		// rollback: add node
-		func() error {
+		func(ctx context.Context) error {
 			plugins := []Plugin{}
 			for plugin := range rollbackPluginChan {
 				plugins = append(plugins, plugin)
@@ -776,5 +783,6 @@ func (pm *PluginManager) RemoveNode(ctx context.Context, node string) error {
 			}
 			return nil
 		},
+		pm.config.GlobalTimeout,
 	)
 }

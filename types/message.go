@@ -77,9 +77,6 @@ type ControlWorkloadMessage struct {
 	Hook       []*bytes.Buffer
 }
 
-// RawParams .
-type RawParams map[string]interface{}
-
 // CreateWorkloadMessage for create message
 type CreateWorkloadMessage struct {
 	//ResourceMeta

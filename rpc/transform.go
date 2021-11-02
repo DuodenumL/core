@@ -76,7 +76,7 @@ func toRPCRawParamsMap(m map[string]types.RawParams) map[string]*pb.RawParams {
 }
 
 func toRPCNodeResource(nr *types.NodeResource) *pb.NodeResource {
-	// todo: change rpc definition
+	// TODO: change rpc definition
 	return &pb.NodeResource{
 		Name:             nr.Name,
 		Diffs:            nr.Diffs,

@@ -203,7 +203,7 @@ func (m *Mercury) doAddNode(ctx context.Context, name, endpoint, podname, ca, ce
 		return nil, types.ErrTxnConditionFailed
 	}
 
-	// todo: go metrics.Client.SendNodeInfo(node.Metrics())
+	// TODO: go metrics.Client.SendNodeInfo(node.Metrics())
 	return node, nil
 }
 
