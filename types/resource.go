@@ -1,10 +1,10 @@
 package types
 
 // ResourceOptions for create/realloc/replace
-type ResourceOptions map[string]interface{}
+type ResourceOptions RawParams
 
 // ResourceMeta for messages and workload to store
-type ResourceMeta map[string]map[string]interface{}
+type ResourceMeta map[string]RawParams
 
 // RawParams .
 type RawParams map[string]interface{}

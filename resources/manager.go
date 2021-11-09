@@ -316,150 +316,79 @@ func (pm *PluginManager) Alloc(ctx context.Context, node string, deployCount int
 	)
 }
 
-func (pm *PluginManager) diff(ctx context.Context, workloads []*types.Workload, resourceArgsMap map[string]map[string]types.RawParams) (map[string]map[string]types.RawParams, error) {
-	diffResourceArgsMap := map[string]map[string]types.RawParams{}
-	errChan := make(chan error, len(workloads)*len(pm.plugins))
+// Realloc reallocates resource for workloads, returns engine args and final resource args.
+func (pm *PluginManager) Realloc(ctx context.Context, node string, originResourceArgs map[string]types.RawParams, resourceOpts types.RawParams) (types.RawParams, map[string]types.RawParams, error) {
+	resEngineArgs := types.RawParams{}
+	resDeltaResourceArgs := map[string]types.RawParams{}
+	resFinalResourceArgs := map[string]types.RawParams{}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(len(workloads) * len(pm.plugins))
 	mutex := &sync.Mutex{}
+	engineArgsChan := make(chan types.RawParams, len(pm.plugins))
+	rollbackPluginChan := make(chan Plugin, len(pm.plugins))
 
-	for _, workload := range workloads {
-		diffResourceArgsMap[workload.ID] = map[string]types.RawParams{}
-		go func(workload *types.Workload) {
-			pm.callPlugins(pm.plugins, func(plugin Plugin) {
-				defer wg.Done()
-				diffResourceArgs, err := plugin.Diff(ctx, workload.ResourceArgs[plugin.Name()], resourceArgsMap[workload.ID][plugin.Name()])
-				if err != nil {
-					log.Errorf(ctx, "[diff] plugin %v workload %v failed to get diff, src: %+v, dst: %+v, err: %v", plugin.Name(), workload.ID, workload.ResourceArgs[plugin.Name()], resourceArgsMap[workload.ID][plugin.Name()])
-					errChan <- err
-				} else {
-					mutex.Lock()
-					defer mutex.Unlock()
-					diffResourceArgsMap[workload.ID][plugin.Name()] = diffResourceArgs
-				}
-			})
-		}(workload)
-	}
-	wg.Wait()
-	close(errChan)
-
-	if len(errChan) != 0 {
-		return nil, types.ErrDiffFailed
-	}
-
-	return diffResourceArgsMap, nil
-}
-
-// Realloc reallocates resource for workloads, returns engine args and resource args for each workload.
-// format of engine args: {"workload1": {"cpu": 1.2}}
-// format of resource args: {"workload1": {"cpu-plugin": {"cpu": 1.2}}}
-func (pm *PluginManager) Realloc(ctx context.Context, workloads []*types.Workload, resourceOpts types.RawParams) (map[string]types.RawParams, map[string]map[string]types.RawParams, error) {
-	engineArgsMap := map[string]types.RawParams{}
-	resourceArgsMap := map[string]map[string]types.RawParams{}
-	diffResourceArgsMap := map[string]map[string]types.RawParams{}
-	workloadIDs := []string{}
-
-	// nodeResourceArgsMap: {"node1": ["workload1": {"cpu-plugin": {"cpu": 1.2}}]}
-	nodeResourceArgsMap := map[string][]map[string]types.RawParams{}
-
-	var rollbackNodeChan chan string
-	mutex := &sync.Mutex{}
-
-	return engineArgsMap, resourceArgsMap, utils.Pcr(ctx,
-		// prepare: calculate engine args and resource args
+	return resEngineArgs, resFinalResourceArgs, utils.Pcr(ctx,
+		// prepare: calculate engine args, delta node resource args and final workload resource args
 		func(ctx context.Context) error {
-			for _, workload := range workloads {
-				engineArgsMap[workload.ID] = types.RawParams{}
-				resourceArgsMap[workload.ID] = map[string]types.RawParams{}
-				workloadIDs = append(workloadIDs, workload.ID)
-				if _, ok := nodeResourceArgsMap[workload.Nodename]; !ok {
-					nodeResourceArgsMap[workload.Nodename] = []map[string]types.RawParams{}
-				}
-			}
-
-			rollbackNodeChan = make(chan string, len(nodeResourceArgsMap))
-			errChan := make(chan error, len(pm.plugins))
-
 			pm.callPlugins(pm.plugins, func(plugin Plugin) {
-				engineArgs, resourceArgs, err := plugin.Realloc(ctx, workloads, resourceOpts)
+				engineArgs, deltaResourceArgs, finalResourceArgs, err := plugin.Realloc(ctx, node, originResourceArgs[plugin.Name()], resourceOpts)
 				if err != nil {
-					log.Errorf(ctx, "[Realloc] plugin %v failed to calculate realloc args for workloads %v, err: %v", plugin.Name(), workloadIDs, err)
-					errChan <- err
+					log.Errorf(ctx, "[Realloc] plugin %v failed to calculate realloc args, err: %v", plugin.Name(), err)
 				} else {
 					mutex.Lock()
 					defer mutex.Unlock()
 
-					for workloadID, args := range engineArgs {
-						engineArgsMap[workloadID], err = pm.mergeEngineArgs(ctx, engineArgsMap[workloadID], args)
-						if err != nil {
-							log.Errorf(ctx, "[Realloc] plugin %v failed to merge engine args for workload %v, err: %v", plugin.Name(), workloadID, err)
-							errChan <- err
-							return
-						}
-						resourceArgsMap[workloadID][plugin.Name()] = resourceArgs[workloadID]
-					}
+					engineArgsChan <- engineArgs
+					resDeltaResourceArgs[plugin.Name()] = deltaResourceArgs
+					resFinalResourceArgs[plugin.Name()] = finalResourceArgs
 				}
 			})
-			close(errChan)
 
-			if len(errChan) > 0 {
-				log.Errorf(ctx, "[Realloc] failed to realloc for workloads %v", workloadIDs)
+			close(engineArgsChan)
+			if len(engineArgsChan) != len(pm.plugins) {
+				log.Errorf(ctx, "[Realloc] realloc failed, origin: %+v, opts: %+v", originResourceArgs, resourceOpts)
 				return types.ErrReallocFailed
 			}
 
 			var err error
-			diffResourceArgsMap, err = pm.diff(ctx, workloads, resourceArgsMap)
-			if err != nil {
-				log.Errorf(ctx, "[Realloc] failed to get diff for workloads %v", workloadIDs)
-				return err
+			for engineArgs := range engineArgsChan {
+				if resEngineArgs, err = pm.mergeEngineArgs(ctx, resEngineArgs, engineArgs); err != nil {
+					log.Errorf(ctx, "[Realloc] invalid engine args, err: %v", err)
+					return types.ErrReallocFailed
+				}
 			}
 			return nil
 		},
 		// commit: update node resource
 		func(ctx context.Context) error {
-			for _, workload := range workloads {
-				nodeResourceArgsMap[workload.Nodename] = append(nodeResourceArgsMap[workload.Nodename], diffResourceArgsMap[workload.ID])
-			}
+			pm.callPlugins(pm.plugins, func(plugin Plugin) {
+				if err := plugin.UpdateNodeResourceUsage(ctx, node, []types.RawParams{resDeltaResourceArgs[plugin.Name()]}, Incr); err != nil {
+					log.Errorf(ctx, "[Realloc] plugin %v failed to update node resource usage for node %v, err: %v", plugin.Name(), node, err)
+				} else {
+					rollbackPluginChan <- plugin
+				}
+			})
+			close(rollbackPluginChan)
 
-			wg := &sync.WaitGroup{}
-			wg.Add(len(nodeResourceArgsMap))
-
-			for node, resourceArgs := range nodeResourceArgsMap {
-				go func(node string, resourceArgs []map[string]types.RawParams) {
-					defer wg.Done()
-					if err := pm.UpdateNodeResourceUsage(ctx, node, resourceArgs, Incr); err != nil {
-						log.Errorf(ctx, "[Realloc] failed to update node resource for node %v, err: %v", node, err)
-					} else {
-						rollbackNodeChan <- node
-					}
-				}(node, resourceArgs)
-			}
-			wg.Wait()
-			close(rollbackNodeChan)
-
-			if len(rollbackNodeChan) != len(nodeResourceArgsMap) {
-				log.Errorf(ctx, "[Realloc] failed to update node resource, rollback")
-				return types.ErrReallocFailed
+			if len(rollbackPluginChan) != len(pm.plugins) {
+				log.Errorf(ctx, "[Realloc] failed to update node resource usage for node %v, rollback", node)
+				return types.ErrRollbackFailed
 			}
 			return nil
 		},
-		// rollback: returns the changed resource
+		// rollback: reverts changes
 		func(ctx context.Context) error {
-			wg := &sync.WaitGroup{}
-			wg.Add(len(rollbackNodeChan))
-
-			errChan := make(chan error, len(rollbackNodeChan))
-
-			for node := range rollbackNodeChan {
-				go func(node string) {
-					defer wg.Done()
-					if err := pm.UpdateNodeResourceUsage(ctx, node, nodeResourceArgsMap[node], Decr); err != nil {
-						log.Errorf(ctx, "[Realloc] node %v failed to rollback node resource, err: %v", node, err)
-						errChan <- err
-					}
-				}(node)
+			rollbackPlugins := []Plugin{}
+			for plugin := range rollbackPluginChan {
+				rollbackPlugins = append(rollbackPlugins, plugin)
 			}
+
+			errChan := make(chan error, len(rollbackPlugins))
+			pm.callPlugins(rollbackPlugins, func(plugin Plugin) {
+				if err := plugin.UpdateNodeResourceUsage(ctx, node, []types.RawParams{resDeltaResourceArgs[plugin.Name()]}, Decr); err != nil {
+					log.Errorf(ctx, "[Realloc] plugin %v failed to rollback node resource usage for node %v, err: %v", plugin.Name(), node, err)
+					errChan <- err
+				}
+			})
 			close(errChan)
 
 			if len(errChan) > 0 {

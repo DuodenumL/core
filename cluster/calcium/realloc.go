@@ -31,8 +31,8 @@ func (c *Calcium) ReallocResource(ctx context.Context, opts *types.ReallocOption
 func (c *Calcium) doReallocOnNode(ctx context.Context, node *types.Node, workload *types.Workload, originWorkload *types.Workload, opts *types.ReallocOptions) error {
 	logger := log.WithField("Calcium", "ReallocResource").WithField("opts", opts)
 	return logger.Err(ctx, c.resource.WithNodesLocked(ctx, []string{workload.Nodename}, func(ctx context.Context) error {
-		var resourceArgsMap map[string]map[string]types.RawParams
-		var engineArgsMap map[string]types.RawParams
+		var resourceArgs map[string]types.RawParams
+		var engineArgs types.RawParams
 		var err error
 
 		return utils.Txn(
@@ -40,27 +40,24 @@ func (c *Calcium) doReallocOnNode(ctx context.Context, node *types.Node, workloa
 			// if: update workload resource
 			func(ctx context.Context) error {
 				// note here will change the node resource meta (stored in resource plugin)
-				engineArgsMap, resourceArgsMap, err = c.resource.Realloc(ctx, []*types.Workload{workload}, types.RawParams(opts.ResourceOpts))
+				engineArgs, resourceArgs, err = c.resource.Realloc(ctx, workload.Nodename, workload.ResourceArgs, types.RawParams(opts.ResourceOpts))
 				if err != nil {
 					return err
 				}
-				return node.Engine.VirtualizationUpdateResource(ctx, opts.ID, &enginetypes.VirtualizationResource{EngineArgs: engineArgsMap[opts.ID]})
+				return node.Engine.VirtualizationUpdateResource(ctx, opts.ID, &enginetypes.VirtualizationResource{EngineArgs: engineArgs})
 			},
 			// then: update workload meta
 			func(ctx context.Context) error {
-				workload.EngineArgs = engineArgsMap[opts.ID]
-				workload.ResourceArgs = map[string]map[string]interface{}{}
-				for plugin, args := range resourceArgsMap[opts.ID] {
-					workload.ResourceArgs[plugin] = args
-				}
+				workload.EngineArgs = engineArgs
+				workload.ResourceArgs = resourceArgs
 				return c.store.UpdateWorkload(ctx, workload)
 			},
-			// rollback: release the resources and rollback workload meta
+			// rollback: revert the resource changes and rollback workload meta
 			func(ctx context.Context, failureByCond bool) error {
 				if failureByCond {
 					return nil
 				}
-				err := c.resource.UpdateNodeResourceUsage(ctx, workload.Nodename, []map[string]types.RawParams{resourceArgsMap[opts.ID]}, resources.Decr)
+				err := c.resource.UpdateNodeResourceUsage(ctx, workload.Nodename, []map[string]types.RawParams{resourceArgs}, resources.Decr)
 				if err != nil {
 					return errors.WithStack(err)
 				}

@@ -2,74 +2,22 @@ package redis
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"time"
 
-	"github.com/projecteru2/core/store"
 	"github.com/projecteru2/core/types"
 )
 
 func (s *RediaronTestSuite) TestAddNode() {
 	ctx := context.Background()
-	nodename := "testnode"
-	nodename2 := "testnode2"
-	endpoint := "tcp://128.0.0.1:2376"
 	podname := "testpod"
 	_, err := s.rediaron.AddPod(ctx, podname, "test")
 	s.NoError(err)
 	_, err = s.rediaron.AddPod(ctx, "numapod", "test")
 	s.NoError(err)
-	cpu := 1
-	share := 100
-	memory := int64(100)
-	storage := int64(100)
 	s.rediaron.config.Scheduler.ShareBase = 100
 	labels := map[string]string{"test": "1"}
 
-	// wrong endpoint
-	ctx1, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	_, err = s.rediaron.AddNode(ctx1, &types.AddNodeOptions{Nodename: nodename, Endpoint: "abc", Podname: podname, CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels})
-	s.Error(err)
-
-	// wrong because engine not mocked
-	ctx2, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	_, err = s.rediaron.AddNode(ctx2, &types.AddNodeOptions{Nodename: nodename, Endpoint: endpoint, Podname: podname, CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels})
-	s.Error(err)
-	endpoint = "mock://fakeengine"
-
-	// wrong no pod
-	_, err = s.rediaron.AddNode(ctx, &types.AddNodeOptions{Nodename: nodename, Endpoint: endpoint, Podname: "abc", CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels})
-	s.Error(err)
-	// AddNode
-	node, err := s.rediaron.AddNode(ctx, &types.AddNodeOptions{Nodename: nodename, Endpoint: endpoint, Podname: podname, CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels})
-	s.NoError(err)
-	s.Equal(node.Name, nodename)
-	s.Equal(node.CPU["0"], int64(100))
-	// add again and failed
-	_, err = s.rediaron.AddNode(ctx, &types.AddNodeOptions{Nodename: nodename, Endpoint: endpoint, Podname: podname, CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels})
-	s.Error(err)
-	// AddNode with numa
-	nodeWithNuma, err := s.rediaron.AddNode(ctx, &types.AddNodeOptions{Nodename: "nodewithnuma", Endpoint: endpoint, Podname: "numapod", CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels, Numa: types.NUMA{"1": "n1", "2": "n2"}})
-	s.NoError(err)
-	s.Equal(nodeWithNuma.Name, "nodewithnuma")
-	s.Equal(len(nodeWithNuma.NUMAMemory), 2)
-	s.Equal(nodeWithNuma.NUMAMemory["n1"], int64(50))
-	// Addnode again will failed
-	_, err = s.rediaron.AddNode(ctx, &types.AddNodeOptions{Nodename: nodename, Endpoint: endpoint, Podname: podname, CPU: cpu, Share: share, Memory: memory, Storage: storage, Labels: labels})
-	s.Error(err)
-	// Check etcd has node data
-	key := fmt.Sprintf(nodeInfoKey, nodename)
-	_, err = s.rediaron.GetOne(ctx, key)
-	s.NoError(err)
-	// AddNode with mocked engine and default value
-	node2, err := s.rediaron.AddNode(ctx, &types.AddNodeOptions{Nodename: nodename2, Endpoint: endpoint, Podname: podname, Labels: labels})
-	s.NoError(err)
-	s.Equal(node2.CPU["0"], int64(100))
-	s.Equal(len(node2.CPU), 100)
-	s.Equal(node2.MemCap, int64(85899345920))
 	// with tls
 	ca := `-----BEGIN CERTIFICATE-----
 MIIC7TCCAdWgAwIBAgIJAM8uLRZf9jttMA0GCSqGSIb3DQEBCwUAMA0xCzAJBgNV
@@ -212,9 +160,6 @@ func (s *RediaronTestSuite) TestUpdateNodeResource() {
 	node, err := s.rediaron.doAddNode(ctx, "test", "mock://", "testpod", "", "", "", map[string]string{"x": "y"})
 	s.NoError(err)
 	s.Equal(node.Name, "test")
-	s.Error(s.rediaron.UpdateNodeResource(ctx, node, nil, "wtf"))
-	s.NoError(s.rediaron.UpdateNodeResource(ctx, node, &types.ResourceMeta{CPU: map[string]int64{"0": 100}}, store.ActionIncr))
-	s.NoError(s.rediaron.UpdateNodeResource(ctx, node, &types.ResourceMeta{CPU: map[string]int64{"0": 100}}, store.ActionDecr))
 }
 
 func (s *RediaronTestSuite) TestExtractNodename() {

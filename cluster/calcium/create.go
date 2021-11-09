@@ -248,7 +248,7 @@ func (c *Calcium) doDeployOneWorkload(
 	decrProcessing bool,
 ) (err error) {
 	workload := &types.Workload{
-		ResourceArgs: map[string]map[string]interface{}{},
+		ResourceArgs: types.ResourceMeta{},
 		EngineArgs:   msg.EngineArgs,
 		Name:         config.Name,
 		Labels:       config.Labels,

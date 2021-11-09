@@ -2,7 +2,6 @@ package mocks
 
 import (
 	"context"
-	"fmt"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/resources/types"
 	coretypes "github.com/projecteru2/core/types"
@@ -75,31 +74,15 @@ func NewMockCpuPlugin() *Plugin {
 		nil,
 	)
 
-	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) map[string]coretypes.RawParams {
-		ids := []string{}
-		for _, workload := range workloads {
-			ids = append(ids, workload.ID)
+	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.RawParams, resourceOpts coretypes.RawParams) coretypes.RawParams {
+		log.Infof(ctx, "[Realloc] cpu-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
+		return coretypes.RawParams{
+			"cpu": 10086,
 		}
-		log.Infof(ctx, "[Realloc] cpu-plugin realloc workloads, resource opts: %v", resourceOpts)
-		res := map[string]coretypes.RawParams{}
-
-		for _, workload := range workloads {
-			// mock engine args
-			res[workload.ID] = coretypes.RawParams{
-				"cpu": 10086,
-			}
-		}
-		return res
-	}, func(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) map[string]coretypes.RawParams {
-		res := map[string]coretypes.RawParams{}
-
-		for _, workload := range workloads {
-			// mock resource args
-			res[workload.ID] = coretypes.RawParams{
-				"cpu": 10086,
-			}
-		}
-		return res
+	}, coretypes.RawParams{
+		"cpu": 10086,
+	}, coretypes.RawParams{
+		"cpu": 10086,
 	}, nil)
 
 	m.On("AddNode", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, rawRequest coretypes.RawParams) coretypes.RawParams {
@@ -115,14 +98,6 @@ func NewMockCpuPlugin() *Plugin {
 		log.Infof(ctx, "cpu-plugin remove node %v", node)
 		return nil
 	})
-
-	m.On("Diff", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, srcResourceArgs coretypes.RawParams, dstResourceArgs coretypes.RawParams) coretypes.RawParams {
-		res := coretypes.RawParams{}
-		for key := range srcResourceArgs {
-			res[key] = fmt.Sprintf("%v - %v", dstResourceArgs[key], srcResourceArgs[key])
-		}
-		return res
-	}, nil)
 
 	return m
 }
@@ -190,31 +165,15 @@ func NewMockMemPlugin() *Plugin {
 		nil,
 	)
 
-	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) map[string]coretypes.RawParams {
-		ids := []string{}
-		for _, workload := range workloads {
-			ids = append(ids, workload.ID)
+	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.RawParams, resourceOpts coretypes.RawParams) coretypes.RawParams {
+		log.Infof(ctx, "[Realloc] mem-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
+		return coretypes.RawParams{
+			"mem": "1000000PB",
 		}
-		log.Infof(ctx, "[Realloc] mem-plugin realloc workloads, resource opts: %v", resourceOpts)
-		res := map[string]coretypes.RawParams{}
-
-		for _, workload := range workloads {
-			// mock engine args
-			res[workload.ID] = coretypes.RawParams{
-				"mem": "10086PB",
-			}
-		}
-		return res
-	}, func(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) map[string]coretypes.RawParams {
-		res := map[string]coretypes.RawParams{}
-
-		for _, workload := range workloads {
-			// mock resource args
-			res[workload.ID] = coretypes.RawParams{
-				"mem": "10086PB",
-			}
-		}
-		return res
+	}, coretypes.RawParams{
+		"mem": "1000000PB",
+	}, coretypes.RawParams{
+		"mem": "1000000PB",
 	}, nil)
 
 	m.On("AddNode", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, rawRequest coretypes.RawParams) coretypes.RawParams {
@@ -230,14 +189,6 @@ func NewMockMemPlugin() *Plugin {
 		log.Infof(ctx, "mem-plugin remove node %v", node)
 		return nil
 	})
-
-	m.On("Diff", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, srcResourceArgs coretypes.RawParams, dstResourceArgs coretypes.RawParams) coretypes.RawParams {
-		res := coretypes.RawParams{}
-		for key := range srcResourceArgs {
-			res[key] = fmt.Sprintf("%v - %v", dstResourceArgs[key], srcResourceArgs[key])
-		}
-		return res
-	}, nil)
 
 	return m
 }

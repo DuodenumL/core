@@ -17,13 +17,13 @@ type Plugin struct {
 	mock.Mock
 }
 
-// AddNode provides a mock function with given fields: ctx, node, rawRequest
-func (_m *Plugin) AddNode(ctx context.Context, node string, rawRequest types.RawParams) (types.RawParams, types.RawParams, error) {
-	ret := _m.Called(ctx, node, rawRequest)
+// AddNode provides a mock function with given fields: ctx, node, resourceOpts
+func (_m *Plugin) AddNode(ctx context.Context, node string, resourceOpts types.RawParams) (types.RawParams, types.RawParams, error) {
+	ret := _m.Called(ctx, node, resourceOpts)
 
 	var r0 types.RawParams
 	if rf, ok := ret.Get(0).(func(context.Context, string, types.RawParams) types.RawParams); ok {
-		r0 = rf(ctx, node, rawRequest)
+		r0 = rf(ctx, node, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(types.RawParams)
@@ -32,7 +32,7 @@ func (_m *Plugin) AddNode(ctx context.Context, node string, rawRequest types.Raw
 
 	var r1 types.RawParams
 	if rf, ok := ret.Get(1).(func(context.Context, string, types.RawParams) types.RawParams); ok {
-		r1 = rf(ctx, node, rawRequest)
+		r1 = rf(ctx, node, resourceOpts)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(types.RawParams)
@@ -41,7 +41,7 @@ func (_m *Plugin) AddNode(ctx context.Context, node string, rawRequest types.Raw
 
 	var r2 error
 	if rf, ok := ret.Get(2).(func(context.Context, string, types.RawParams) error); ok {
-		r2 = rf(ctx, node, rawRequest)
+		r2 = rf(ctx, node, resourceOpts)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -49,13 +49,13 @@ func (_m *Plugin) AddNode(ctx context.Context, node string, rawRequest types.Raw
 	return r0, r1, r2
 }
 
-// Alloc provides a mock function with given fields: ctx, node, deployCount, rawRequest
-func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, rawRequest types.RawParams) ([]types.RawParams, []types.RawParams, error) {
-	ret := _m.Called(ctx, node, deployCount, rawRequest)
+// Alloc provides a mock function with given fields: ctx, node, deployCount, resourceOpts
+func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, resourceOpts types.RawParams) ([]types.RawParams, []types.RawParams, error) {
+	ret := _m.Called(ctx, node, deployCount, resourceOpts)
 
 	var r0 []types.RawParams
 	if rf, ok := ret.Get(0).(func(context.Context, string, int, types.RawParams) []types.RawParams); ok {
-		r0 = rf(ctx, node, deployCount, rawRequest)
+		r0 = rf(ctx, node, deployCount, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]types.RawParams)
@@ -64,7 +64,7 @@ func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, rawRe
 
 	var r1 []types.RawParams
 	if rf, ok := ret.Get(1).(func(context.Context, string, int, types.RawParams) []types.RawParams); ok {
-		r1 = rf(ctx, node, deployCount, rawRequest)
+		r1 = rf(ctx, node, deployCount, resourceOpts)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).([]types.RawParams)
@@ -73,35 +73,12 @@ func (_m *Plugin) Alloc(ctx context.Context, node string, deployCount int, rawRe
 
 	var r2 error
 	if rf, ok := ret.Get(2).(func(context.Context, string, int, types.RawParams) error); ok {
-		r2 = rf(ctx, node, deployCount, rawRequest)
+		r2 = rf(ctx, node, deployCount, resourceOpts)
 	} else {
 		r2 = ret.Error(2)
 	}
 
 	return r0, r1, r2
-}
-
-// Diff provides a mock function with given fields: ctx, srcResourceArgs, dstResourceArgs
-func (_m *Plugin) Diff(ctx context.Context, srcResourceArgs types.RawParams, dstResourceArgs types.RawParams) (types.RawParams, error) {
-	ret := _m.Called(ctx, srcResourceArgs, dstResourceArgs)
-
-	var r0 types.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, types.RawParams, types.RawParams) types.RawParams); ok {
-		r0 = rf(ctx, srcResourceArgs, dstResourceArgs)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(types.RawParams)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, types.RawParams, types.RawParams) error); ok {
-		r1 = rf(ctx, srcResourceArgs, dstResourceArgs)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // GetNodeResourceInfo provides a mock function with given fields: ctx, node, workloads, fix
@@ -173,36 +150,45 @@ func (_m *Plugin) Name() string {
 	return r0
 }
 
-// Realloc provides a mock function with given fields: ctx, workloads, resourceOpts
-func (_m *Plugin) Realloc(ctx context.Context, workloads []*types.Workload, resourceOpts types.RawParams) (map[string]types.RawParams, map[string]types.RawParams, error) {
-	ret := _m.Called(ctx, workloads, resourceOpts)
+// Realloc provides a mock function with given fields: ctx, node, originResourceArgs, resourceOpts
+func (_m *Plugin) Realloc(ctx context.Context, node string, originResourceArgs types.RawParams, resourceOpts types.RawParams) (types.RawParams, types.RawParams, types.RawParams, error) {
+	ret := _m.Called(ctx, node, originResourceArgs, resourceOpts)
 
-	var r0 map[string]types.RawParams
-	if rf, ok := ret.Get(0).(func(context.Context, []*types.Workload, types.RawParams) map[string]types.RawParams); ok {
-		r0 = rf(ctx, workloads, resourceOpts)
+	var r0 types.RawParams
+	if rf, ok := ret.Get(0).(func(context.Context, string, types.RawParams, types.RawParams) types.RawParams); ok {
+		r0 = rf(ctx, node, originResourceArgs, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]types.RawParams)
+			r0 = ret.Get(0).(types.RawParams)
 		}
 	}
 
-	var r1 map[string]types.RawParams
-	if rf, ok := ret.Get(1).(func(context.Context, []*types.Workload, types.RawParams) map[string]types.RawParams); ok {
-		r1 = rf(ctx, workloads, resourceOpts)
+	var r1 types.RawParams
+	if rf, ok := ret.Get(1).(func(context.Context, string, types.RawParams, types.RawParams) types.RawParams); ok {
+		r1 = rf(ctx, node, originResourceArgs, resourceOpts)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(map[string]types.RawParams)
+			r1 = ret.Get(1).(types.RawParams)
 		}
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, []*types.Workload, types.RawParams) error); ok {
-		r2 = rf(ctx, workloads, resourceOpts)
+	var r2 types.RawParams
+	if rf, ok := ret.Get(2).(func(context.Context, string, types.RawParams, types.RawParams) types.RawParams); ok {
+		r2 = rf(ctx, node, originResourceArgs, resourceOpts)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(types.RawParams)
+		}
 	}
 
-	return r0, r1, r2
+	var r3 error
+	if rf, ok := ret.Get(3).(func(context.Context, string, types.RawParams, types.RawParams) error); ok {
+		r3 = rf(ctx, node, originResourceArgs, resourceOpts)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // Remap provides a mock function with given fields: ctx, node, workloadMap
@@ -242,13 +228,13 @@ func (_m *Plugin) RemoveNode(ctx context.Context, node string) error {
 	return r0
 }
 
-// SelectAvailableNodes provides a mock function with given fields: ctx, nodes, requestOpts
-func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, requestOpts types.RawParams) (map[string]*resourcestypes.NodeResourceInfo, int, error) {
-	ret := _m.Called(ctx, nodes, requestOpts)
+// SelectAvailableNodes provides a mock function with given fields: ctx, nodes, resourceOpts
+func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, resourceOpts types.RawParams) (map[string]*resourcestypes.NodeResourceInfo, int, error) {
+	ret := _m.Called(ctx, nodes, resourceOpts)
 
 	var r0 map[string]*resourcestypes.NodeResourceInfo
 	if rf, ok := ret.Get(0).(func(context.Context, []string, types.RawParams) map[string]*resourcestypes.NodeResourceInfo); ok {
-		r0 = rf(ctx, nodes, requestOpts)
+		r0 = rf(ctx, nodes, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]*resourcestypes.NodeResourceInfo)
@@ -257,14 +243,14 @@ func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, requ
 
 	var r1 int
 	if rf, ok := ret.Get(1).(func(context.Context, []string, types.RawParams) int); ok {
-		r1 = rf(ctx, nodes, requestOpts)
+		r1 = rf(ctx, nodes, resourceOpts)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
 
 	var r2 error
 	if rf, ok := ret.Get(2).(func(context.Context, []string, types.RawParams) error); ok {
-		r2 = rf(ctx, nodes, requestOpts)
+		r2 = rf(ctx, nodes, resourceOpts)
 	} else {
 		r2 = ret.Error(2)
 	}

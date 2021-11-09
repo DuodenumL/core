@@ -11,7 +11,6 @@ import (
 	coretypes "github.com/projecteru2/core/types"
 )
 
-
 // Incr increase
 const Incr = true
 
@@ -43,19 +42,15 @@ type Plugin interface {
 	// pure calculation
 	Alloc(ctx context.Context, node string, deployCount int, resourceOpts coretypes.RawParams) ([]coretypes.RawParams, []coretypes.RawParams, error)
 
-	// Realloc reallocates resource, returns engine args and resource args for each workload.
+	// Realloc reallocates resource, returns engine args, delta resource args and final resource args.
 	// should return error if resource of some node is not enough for the realloc operation.
 	// pure calculation
-	Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (map[string]coretypes.RawParams, map[string]coretypes.RawParams, error)
+	Realloc(ctx context.Context, node string, originResourceArgs coretypes.RawParams, resourceOpts coretypes.RawParams) (coretypes.RawParams, coretypes.RawParams, coretypes.RawParams, error)
+	//Realloc2(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (map[string]coretypes.RawParams, map[string]coretypes.RawParams, error)
 
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
 	// pure calculation
 	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]coretypes.RawParams, error)
-
-	// Diff returns dstResourceArgs - srcResourceArgs
-	// e.g.: src: {"cpu": 1.2}, dst: {"cpu": 1.5}, result: {"cpu": 0.3}
-	// pure calculation
-	Diff(ctx context.Context, srcResourceArgs coretypes.RawParams, dstResourceArgs coretypes.RawParams) (coretypes.RawParams, error)
 
 	// UpdateNodeResourceUsage updates node resource usage
 	UpdateNodeResourceUsage(ctx context.Context, node string, resourceArgs []coretypes.RawParams, direction bool) error
@@ -135,7 +130,7 @@ func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int,
 	panic("implement me")
 }
 
-func (bp *BinaryPlugin) Realloc(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (map[string]coretypes.RawParams, map[string]coretypes.RawParams, error) {
+func (bp *BinaryPlugin) Realloc(ctx context.Context, node string, originResourceArgs coretypes.RawParams, resourceOpts coretypes.RawParams) (coretypes.RawParams, coretypes.RawParams, coretypes.RawParams, error) {
 	panic("implement me")
 }
 
@@ -146,11 +141,6 @@ func (bp *BinaryPlugin) UpdateNodeResourceUsage(ctx context.Context, node string
 
 // UpdateNodeResourceCapacity .
 func (bp *BinaryPlugin) UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts coretypes.RawParams, direction bool) error {
-	panic("implement me")
-}
-
-// Diff .
-func (bp *BinaryPlugin) Diff(ctx context.Context, srcResourceArgs coretypes.RawParams, dstResourceArgs coretypes.RawParams) (coretypes.RawParams, error) {
 	panic("implement me")
 }
 

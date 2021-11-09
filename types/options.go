@@ -11,7 +11,6 @@ import (
 
 // DeployOptions is options for deploying
 type DeployOptions struct {
-	//ResourceOpts   ResourceOptions
 	ResourceOpts   ResourceOptions
 	Name           string            // Name of application
 	Entrypoint     *Entrypoint       // entrypoint
