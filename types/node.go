@@ -46,12 +46,8 @@ func (n NodeMeta) DeepCopy() (nn NodeMeta, err error) {
 // Node store node info
 type Node struct {
 	NodeMeta
-	ResourceCapacity map[string]RawParams
-	ResourceUsage    map[string]RawParams
-	NodeInfo         string `json:"-"`
-
-	CPUUsed    float64 `json:"cpuused"`
-	VolumeUsed int64   `json:"volumeused"`
+	ResourceCapacity map[string]NodeResourceArgs
+	ResourceUsage    map[string]NodeResourceArgs
 
 	// Bypass if bypass is true, it will not participate in future scheduling
 	Bypass    bool       `json:"bypass,omitempty"`
@@ -87,8 +83,8 @@ func (n *Node) IsDown() bool {
 type NodeMetrics struct {
 	Name             string
 	Podname          string
-	ResourceCapacity map[string]RawParams
-	ResourceUsage    map[string]RawParams
+	ResourceCapacity map[string]NodeResourceArgs
+	ResourceUsage    map[string]NodeResourceArgs
 }
 
 // Metrics reports metrics value
@@ -103,8 +99,8 @@ func (n *Node) Metrics() *NodeMetrics {
 // NodeResource for node check
 type NodeResource struct {
 	Name             string
-	ResourceCapacity map[string]RawParams
-	ResourceUsage    map[string]RawParams
+	ResourceCapacity map[string]NodeResourceArgs
+	ResourceUsage    map[string]NodeResourceArgs
 	Diffs            []string
 	Workloads        []*Workload
 }

@@ -21,7 +21,7 @@ func ListAllExecutableFiles(basedir string) ([]string, error) {
 		if info.IsDir() && path != basedir {
 			return filepath.SkipDir
 		}
-		if isExecutable(info.Mode().Perm()) {
+		if !info.IsDir() && isExecutable(info.Mode().Perm()) {
 			files = append(files, path)
 		}
 		return nil

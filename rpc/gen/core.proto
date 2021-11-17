@@ -102,19 +102,12 @@ message StringSlice {
 }
 
 message RawParam {
-    string key = 1;
     oneof value {
-      bool bool = 2;
-      int64 int = 3;
-      float float = 4;
-      string string = 5;
-      StringSlice string_slice = 6;
+        string str = 1;
+        StringSlice string_slice = 2;
     }
 }
 
-message RawParams {
-    repeated RawParam raw_params = 1;
-}
 
 message NodeResource {
     string name = 1;
@@ -123,8 +116,8 @@ message NodeResource {
 //    double storage_percent = 4;
 //    double volume_percent = 5;
     repeated string diffs = 6;
-    map<string, RawParams> resource_capacity = 7;
-    map<string, RawParams> resource_usage = 8;
+    string resource_capacity = 7;
+    string resource_usage = 8;
 }
 
 message ListNetworkOptions {
@@ -177,8 +170,8 @@ message Node {
 //    int64 volume_used = 20;
 //    map<string, int64> init_numa_memory = 21;
     bool bypass = 22;
-    map<string, RawParams> resource_capacity = 23;
-    map<string, RawParams> resource_usage = 24;
+    string resource_capacity = 23;
+    string resource_usage = 24;
 }
 
 message Nodes {
@@ -203,7 +196,8 @@ message SetNodeOptions {
     bool workloads_down = 10;
     string endpoint = 11;
     TriOpt bypass_opt = 12;
-    RawParams resource_opts = 13;
+    map<string, RawParam> resource_opts = 13;
+    bool delta = 14;
 }
 
 message SetNodeStatusOptions {
@@ -242,7 +236,7 @@ message Workload {
 //    Resource resource = 10;
     int64 create_time = 11;
     repeated string env = 12;
-    map<string, RawParams> resource_args = 13;
+    string resource_args = 13;
 }
 
 message WorkloadStatus {
@@ -313,7 +307,7 @@ message ReallocOptions {
     string id = 1;
 //    TriOpt bind_cpu_opt = 2;
 //    ResourceOptions resource_opts = 3;
-    RawParams resource_opts = 4;
+    map<string, RawParam> resource_opts = 4;
 }
 
 message AddPodOptions {
@@ -344,7 +338,7 @@ message AddNodeOptions {
 //    map<string, int64> numa_memory = 12;
 //    int64 storage = 13;
 //    map<string, int64> volume_map = 14;
-    RawParams resource_opts = 15;
+    map<string, RawParam> resource_opts = 15;
 }
 
 message RemoveNodeOptions {
@@ -505,7 +499,7 @@ message DeployOptions {
     // should be part of field no.19
     map<string, FileMode> modes = 26;
     map<string, FileOwner> owners = 27;
-    RawParams resource_opts = 28;
+    map<string, RawParam> resource_opts = 28;
 }
 
 message ReplaceOptions {
@@ -585,7 +579,7 @@ message CreateWorkloadMessage {
     map<string, string> publish = 7;
     bytes hook = 8;
 //    Resource resource = 9;
-    map<string, RawParams> resource_args = 10;
+    string resource_args = 10;
 }
 
 message ReplaceWorkloadMessage {

@@ -61,34 +61,32 @@ func (c *Calcium) NodeResource(ctx context.Context, nodename string, fix bool) (
 func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bool) (*types.NodeResource, error) {
 	var nr *types.NodeResource
 	return nr, c.withNodeLocked(ctx, nodename, func(ctx context.Context, node *types.Node) error {
-		return c.resource.WithNodesLocked(ctx, []string{nodename}, func(ctx context.Context) error {
-			workloads, err := c.ListNodeWorkloads(ctx, nodename, nil)
-			if err != nil {
-				log.Errorf(ctx, "[doGetNodeResource] failed to list node workloads, node %v, err: %v", nodename, err)
-				return err
-			}
+		workloads, err := c.ListNodeWorkloads(ctx, nodename, nil)
+		if err != nil {
+			log.Errorf(ctx, "[doGetNodeResource] failed to list node workloads, node %v, err: %v", nodename, err)
+			return err
+		}
 
-			// TODO: percentage?
-			resourceCapacity, resourceUsage, diffs, err := c.resource.GetNodeResourceInfo(ctx, nodename, workloads, fix)
-			if err != nil {
-				log.Errorf(ctx, "[doGetNodeResource] failed to get node resource, node %v, err: %v", nodename, err)
-				return err
-			}
+		// TODO: percentage?
+		resourceCapacity, resourceUsage, diffs, err := c.resource.GetNodeResourceInfo(ctx, nodename, workloads, fix)
+		if err != nil {
+			log.Errorf(ctx, "[doGetNodeResource] failed to get node resource, node %v, err: %v", nodename, err)
+			return err
+		}
 
-			nr = &types.NodeResource{
-				Name:             nodename,
-				ResourceCapacity: resourceCapacity,
-				ResourceUsage:    resourceUsage,
-				Diffs:            diffs,
-				Workloads:        workloads,
-			}
-			return nil
-		})
+		nr = &types.NodeResource{
+			Name:             nodename,
+			ResourceCapacity: resourceCapacity,
+			ResourceUsage:    resourceUsage,
+			Diffs:            diffs,
+			Workloads:        workloads,
+		}
+		return nil
 	})
 }
 func (c *Calcium) doGetDeployMap(ctx context.Context, nodes []string, opts *types.DeployOptions) (map[string]int, error) {
 	// get nodes with capacity > 0
-	nodeResourceInfoMap, total, err := c.resource.SelectAvailableNodes(ctx, nodes, types.RawParams(opts.ResourceOpts))
+	nodeResourceInfoMap, total, err := c.resource.GetNodesCapacity(ctx, nodes, opts.ResourceOpts)
 	if err != nil {
 		log.Errorf(ctx, "[doGetDeployMap] failed to select available nodes, nodes %v, err %v", nodes, err)
 		return nil, err

@@ -36,7 +36,7 @@ func (c *Calcium) CalculateCapacity(ctx context.Context, opts *types.DeployOptio
 				msg.Total += capacity
 			}
 		} else {
-			var infos map[string]*resourcetypes.NodeResourceInfo
+			var infos map[string]*resourcetypes.NodeCapacityInfo
 			infos, msg.Total, err = c.doCalculateCapacity(ctx, nodes, opts)
 			if err != nil {
 				logger.Errorf(ctx, "[Calcium.CalculateCapacity] doCalculateCapacity failed: %+v", err)
@@ -51,7 +51,7 @@ func (c *Calcium) CalculateCapacity(ctx context.Context, opts *types.DeployOptio
 }
 
 func (c *Calcium) doCalculateCapacity(ctx context.Context, nodes []string, opts *types.DeployOptions) (
-	nodeResourceInfoMap map[string]*resourcetypes.NodeResourceInfo,
+	nodeResourceInfoMap map[string]*resourcetypes.NodeCapacityInfo,
 	total int,
 	err error,
 ) {
@@ -60,7 +60,7 @@ func (c *Calcium) doCalculateCapacity(ctx context.Context, nodes []string, opts 
 	}
 
 	// get nodes with capacity > 0
-	nodeResourceInfoMap, total, err = c.resource.SelectAvailableNodes(ctx, nodes, types.RawParams(opts.ResourceOpts))
+	nodeResourceInfoMap, total, err = c.resource.GetNodesCapacity(ctx, nodes, opts.ResourceOpts)
 	if err != nil {
 		log.Errorf(ctx, "[doGetDeployMap] failed to get available nodes,")
 		return nil, 0, err

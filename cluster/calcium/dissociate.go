@@ -34,11 +34,11 @@ func (c *Calcium) DissociateWorkload(ctx context.Context, ids []string) (chan *t
 							ctx,
 							// if
 							func(ctx context.Context) (err error) {
-								resourceArgs := map[string]types.RawParams{}
+								resourceArgs := map[string]types.WorkloadResourceArgs{}
 								for plugin, args := range workload.ResourceArgs {
 									resourceArgs[plugin] = args
 								}
-								return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.RawParams{resourceArgs}, resources.Decr))
+								return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.WorkloadResourceArgs{resourceArgs}, resources.Decr))
 							},
 							// then
 							func(ctx context.Context) error {
@@ -49,12 +49,12 @@ func (c *Calcium) DissociateWorkload(ctx context.Context, ids []string) (chan *t
 								if failedByCond {
 									return nil
 								}
-								resourceArgs := map[string]types.RawParams{}
+								resourceArgs := map[string]types.WorkloadResourceArgs{}
 								for plugin, args := range workload.ResourceArgs {
 									resourceArgs[plugin] = args
 								}
 								// TODO: double code
-								return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.RawParams{resourceArgs}, resources.Incr))
+								return errors.WithStack(c.resource.UpdateNodeResourceUsage(ctx, node.Name, []map[string]types.WorkloadResourceArgs{resourceArgs}, resources.Incr))
 							},
 							c.config.GlobalTimeout,
 						)

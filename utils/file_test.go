@@ -9,7 +9,7 @@ import (
 
 func TestListAllExecutableFiles(t *testing.T) {
 	// TODO
-	files, err := ListAllExecutableFiles("/usr/bin")
+	files, err := ListAllExecutableFiles("/Users/zheyin.liang/Documents/eru/plugins")
 	assert.Nil(t, err)
 	for _, file := range files {
 		fmt.Println(file)

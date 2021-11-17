@@ -3,9 +3,9 @@ package types
 // VirtualizationResource define resources
 type VirtualizationResource struct {
 	EngineArgs    map[string]interface{}      `json:"-"`
-	CPU           map[string]int64            `json:"cpu"`       // for cpu binding
-	Quota         float64                     `json:"cpu-quota"` // for cpu quota
-	Memory        int64                       `json:"memory"`    // for memory binding
+	CPU           map[string]int64            `json:"cpu_map"` // for cpu binding
+	Quota         float64                     `json:"cpu"`     // for cpu quota
+	Memory        int64                       `json:"memory"`  // for memory binding
 	Storage       int64                       `json:"storage"`
 	NUMANode      string                      `json:"numa_node"` // numa node
 	Volumes       []string                    `json:"volumes"`

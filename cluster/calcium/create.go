@@ -40,9 +40,9 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 	logger := log.WithField("Calcium", "doCreateWorkloads").WithField("opts", opts)
 	ch := make(chan *types.CreateWorkloadMessage)
 	// map[node][]engineArgs
-	engineArgsMap := map[string][]types.RawParams{}
+	engineArgsMap := map[string][]types.EngineArgs{}
 	// map[node][]map[plugin]resourceArgs
-	resourceArgsMap := map[string][]map[string]types.RawParams{}
+	resourceArgsMap := map[string][]map[string]types.WorkloadResourceArgs{}
 	var (
 		deployMap   map[string]int
 		rollbackMap map[string][]int
@@ -76,19 +76,19 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 						nodes = append(nodes, node)
 					}
 
-					return c.resource.WithNodesLocked(ctx, nodes, func(ctx context.Context) error {
-						deployMap, err = c.doGetDeployMap(ctx, nodes, opts)
+					deployMap, err = c.doGetDeployMap(ctx, nodes, opts)
+					if err != nil {
+						return errors.WithStack(err)
+					}
 
-						// commit changes
-						for node, deploy := range deployMap {
-							engineArgsMap[node], resourceArgsMap[node], err = c.resource.Alloc(ctx, node, deploy, types.RawParams(opts.ResourceOpts))
-							if err = c.store.CreateProcessing(ctx, opts.GetProcessing(node), deploy); err != nil {
-								return errors.WithStack(err)
-							}
+					for node, deploy := range deployMap {
+						engineArgsMap[node], resourceArgsMap[node], err = c.resource.Alloc(ctx, node, deploy, opts.ResourceOpts)
+						if err = c.store.CreateProcessing(ctx, opts.GetProcessing(node), deploy); err != nil {
+							return errors.WithStack(err)
 						}
+					}
 
-						return err
-					})
+					return err
 				})
 			},
 
@@ -105,13 +105,11 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 				}
 				for nodename, rollbackIndices := range rollbackMap {
 					if e := c.withNodeLocked(ctx, nodename, func(ctx context.Context, node *types.Node) error {
-						return c.resource.WithNodesLocked(ctx, []string{nodename}, func(ctx context.Context) error {
-							resourceArgsToRollback := []map[string]types.RawParams{}
-							for _, idx := range rollbackIndices {
-								resourceArgsToRollback = append(resourceArgsToRollback, resourceArgsMap[nodename][idx])
-							}
-							return c.resource.UpdateNodeResourceUsage(ctx, nodename, resourceArgsToRollback, resources.Decr)
-						})
+						resourceArgsToRollback := []map[string]types.WorkloadResourceArgs{}
+						for _, idx := range rollbackIndices {
+							resourceArgsToRollback = append(resourceArgsToRollback, resourceArgsMap[nodename][idx])
+						}
+						return c.resource.UpdateNodeResourceUsage(ctx, nodename, resourceArgsToRollback, resources.Decr)
 					}); e != nil {
 						err = logger.Err(ctx, e)
 					}
@@ -129,8 +127,8 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 func (c *Calcium) doDeployWorkloads(ctx context.Context,
 	ch chan *types.CreateWorkloadMessage,
 	opts *types.DeployOptions,
-	engineArgsMap map[string][]types.RawParams,
-	resourceArgsMap map[string][]map[string]types.RawParams,
+	engineArgsMap map[string][]types.EngineArgs,
+	resourceArgsMap map[string][]map[string]types.WorkloadResourceArgs,
 	deployMap map[string]int) (_ map[string][]int, err error) {
 
 	wg := sync.WaitGroup{}
@@ -172,7 +170,7 @@ func (c *Calcium) doDeployWorkloads(ctx context.Context,
 }
 
 // deploy scheduled workloads on one node
-func (c *Calcium) doDeployWorkloadsOnNode(ctx context.Context, ch chan *types.CreateWorkloadMessage, nodename string, opts *types.DeployOptions, deploy int, engineArgs []types.RawParams, resourceArgs []map[string]types.RawParams, seq int) (indices []int, err error) {
+func (c *Calcium) doDeployWorkloadsOnNode(ctx context.Context, ch chan *types.CreateWorkloadMessage, nodename string, opts *types.DeployOptions, deploy int, engineArgs []types.EngineArgs, resourceArgs []map[string]types.WorkloadResourceArgs, seq int) (indices []int, err error) {
 	logger := log.WithField("Calcium", "doDeployWorkloadsOnNode").WithField("nodename", nodename).WithField("opts", opts).WithField("deploy", deploy).WithField("engineArgs", engineArgs).WithField("resourceArgs", resourceArgs).WithField("seq", seq)
 	node, err := c.doGetAndPrepareNode(ctx, nodename, opts.Image)
 	if err != nil {
@@ -205,7 +203,7 @@ func (c *Calcium) doDeployWorkloadsOnNode(ctx context.Context, ch chan *types.Cr
 				}()
 
 				createMsg.EngineArgs = engineArgs[idx]
-				createMsg.ResourceArgs = map[string]types.RawParams{}
+				createMsg.ResourceArgs = map[string]types.WorkloadResourceArgs{}
 				for k, v := range resourceArgs[idx] {
 					createMsg.ResourceArgs[k] = v
 				}

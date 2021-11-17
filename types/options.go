@@ -11,7 +11,7 @@ import (
 
 // DeployOptions is options for deploying
 type DeployOptions struct {
-	ResourceOpts   ResourceOptions
+	ResourceOpts   WorkloadResourceOpts
 	Name           string            // Name of application
 	Entrypoint     *Entrypoint       // entrypoint
 	Podname        string            // Name of pod to deploy
@@ -191,7 +191,7 @@ type AddNodeOptions struct {
 	Ca           string
 	Cert         string
 	Key          string
-	ResourceOpts ResourceOptions
+	ResourceOpts NodeResourceOpts
 	Labels       map[string]string
 }
 
@@ -214,7 +214,7 @@ type SetNodeOptions struct {
 	Nodename      string
 	Endpoint      string
 	WorkloadsDown bool
-	ResourceOpts  ResourceOptions
+	ResourceOpts  NodeResourceOpts
 	Labels        map[string]string
 	BypassOpt     TriOptions
 	Nodename      string
@@ -272,7 +272,7 @@ type ExecuteWorkloadOptions struct {
 // ReallocOptions .
 type ReallocOptions struct {
 	ID           string
-	ResourceOpts ResourceOptions
+	ResourceOpts WorkloadResourceOpts
 }
 
 // TriOptions .

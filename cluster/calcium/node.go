@@ -2,8 +2,9 @@ package calcium
 
 import (
 	"context"
-	"github.com/projecteru2/core/resources"
 	"sort"
+
+	"github.com/projecteru2/core/resources"
 
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/types"
@@ -20,8 +21,8 @@ func (c *Calcium) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*typ
 		return nil, logger.Err(ctx, err)
 	}
 
-	var resourceCapacity map[string]types.RawParams
-	var resourceUsage map[string]types.RawParams
+	var resourceCapacity map[string]types.NodeResourceArgs
+	var resourceUsage map[string]types.NodeResourceArgs
 	var node *types.Node
 	var err error
 
@@ -29,7 +30,7 @@ func (c *Calcium) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*typ
 		ctx,
 		// if: add node resource with resource plugins
 		func(ctx context.Context) error {
-			resourceCapacity, resourceUsage, err = c.resource.AddNode(ctx, opts.Nodename, types.RawParams(opts.ResourceOpts))
+			resourceCapacity, resourceUsage, err = c.resource.AddNode(ctx, opts.Nodename, opts.ResourceOpts)
 			return errors.WithStack(err)
 		},
 		// then: add node meta in store
@@ -208,9 +209,7 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 				if len(opts.ResourceOpts) == 0 {
 					return nil
 				}
-				return c.resource.WithNodesLocked(ctx, []string{n.Name}, func(ctx context.Context) error {
-					return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, types.RawParams(opts.ResourceOpts), resources.Incr))
-				})
+				return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, resources.Incr))
 			},
 			// then: update node metadata
 			func(ctx context.Context) error {
@@ -224,9 +223,7 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 				if len(opts.ResourceOpts) == 0 {
 					return nil
 				}
-				return c.resource.WithNodesLocked(ctx, []string{n.Name}, func(ctx context.Context) error {
-					return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, types.RawParams(opts.ResourceOpts), resources.Decr))
-				})
+				return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, resources.Decr))
 			},
 			c.config.GlobalTimeout,
 		))
@@ -236,7 +233,7 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 // filterNodes filters nodes using NodeFilter nf
 // the filtering logic is introduced along with NodeFilter
 // NOTE: when nf.Includes is set, they don't need to belong to podname
-// updateon 2021-06-21: sort and unique locks to avoid deadlock
+// update on 2021-06-21: sort and unique locks to avoid deadlock
 func (c *Calcium) filterNodes(ctx context.Context, nf types.NodeFilter) (ns []*types.Node, err error) {
 	defer func() {
 		if len(ns) == 0 {

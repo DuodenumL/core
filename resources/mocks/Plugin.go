@@ -229,15 +229,15 @@ func (_m *Plugin) RemoveNode(ctx context.Context, node string) error {
 }
 
 // SelectAvailableNodes provides a mock function with given fields: ctx, nodes, resourceOpts
-func (_m *Plugin) SelectAvailableNodes(ctx context.Context, nodes []string, resourceOpts types.RawParams) (map[string]*resourcestypes.NodeResourceInfo, int, error) {
+func (_m *Plugin) GetNodesCapacity(ctx context.Context, nodes []string, resourceOpts types.RawParams) (map[string]*resourcestypes.NodeCapacityInfo, int, error) {
 	ret := _m.Called(ctx, nodes, resourceOpts)
 
-	var r0 map[string]*resourcestypes.NodeResourceInfo
-	if rf, ok := ret.Get(0).(func(context.Context, []string, types.RawParams) map[string]*resourcestypes.NodeResourceInfo); ok {
+	var r0 map[string]*resourcestypes.NodeCapacityInfo
+	if rf, ok := ret.Get(0).(func(context.Context, []string, types.RawParams) map[string]*resourcestypes.NodeCapacityInfo); ok {
 		r0 = rf(ctx, nodes, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*resourcestypes.NodeResourceInfo)
+			r0 = ret.Get(0).(map[string]*resourcestypes.NodeCapacityInfo)
 		}
 	}
 

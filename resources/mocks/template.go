@@ -13,7 +13,7 @@ func NewMockCpuPlugin() *Plugin {
 	m := &Plugin{}
 	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
 	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("SelectAvailableNodes", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeResourceInfo{
+	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeCapacityInfo{
 		"node1": {
 			NodeName: "node1",
 			Capacity: 1,
@@ -106,7 +106,7 @@ func NewMockMemPlugin() *Plugin {
 	m := &Plugin{}
 	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
 	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("SelectAvailableNodes", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeResourceInfo{
+	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeCapacityInfo{
 		"node1": {
 			NodeName: "node1",
 			Capacity: 1,

@@ -30,6 +30,16 @@ func toRPCNetwork(n *enginetypes.Network) *pb.Network {
 }
 
 func toRPCNode(n *types.Node) *pb.Node {
+	resourceCapacity := map[string]types.RawParams{}
+	resourceUsage := map[string]types.RawParams{}
+
+	for plugin, args := range n.ResourceCapacity {
+		resourceCapacity[plugin] = types.RawParams(args)
+	}
+	for plugin, args := range n.ResourceUsage {
+		resourceUsage[plugin] = types.RawParams(args)
+	}
+
 	return &pb.Node{
 		Name:             n.Name,
 		Endpoint:         n.Endpoint,
@@ -38,50 +48,32 @@ func toRPCNode(n *types.Node) *pb.Node {
 		Labels:           n.Labels,
 		Info:             n.NodeInfo,
 		Bypass:           n.Bypass,
-		ResourceCapacity: toRPCRawParamsMap(n.ResourceCapacity),
-		ResourceUsage:    toRPCRawParamsMap(n.ResourceUsage),
+		ResourceCapacity: toRPCResourceArgs(resourceCapacity),
+		ResourceUsage:    toRPCResourceArgs(resourceUsage),
 	}
 }
 
-func toRPCRawParams(params types.RawParams) *pb.RawParams {
-	res := &pb.RawParams{RawParams: []*pb.RawParam{}}
-	for key, value := range params {
-		pbRawParam := &pb.RawParam{
-			Key: key,
-		}
-		switch value.(type) {
-		case bool:
-			pbRawParam.Value = &pb.RawParam_Bool{Bool: value.(bool)}
-		case int64:
-			pbRawParam.Value = &pb.RawParam_Int{Int: value.(int64)}
-		case float32:
-			pbRawParam.Value = &pb.RawParam_Float{Float: value.(float32)}
-		case string:
-			pbRawParam.Value = &pb.RawParam_String_{String_: value.(string)}
-		case []string:
-			pbRawParam.Value = &pb.RawParam_StringSlice{StringSlice: &pb.StringSlice{Slice: value.([]string)}}
-		}
-		res.RawParams = append(res.RawParams, pbRawParam)
-	}
-	return res
-}
-
-func toRPCRawParamsMap(m map[string]types.RawParams) map[string]*pb.RawParams {
-	res := map[string]*pb.RawParams{}
-
-	for plugin, params := range m {
-		res[plugin] = toRPCRawParams(params)
-	}
-	return res
+func toRPCResourceArgs(v interface{}) string {
+	body, _ := json.Marshal(v)
+	return string(body)
 }
 
 func toRPCNodeResource(nr *types.NodeResource) *pb.NodeResource {
-	// TODO: change rpc definition
+	resourceCapacity := map[string]types.RawParams{}
+	resourceUsage := map[string]types.RawParams{}
+
+	for plugin, args := range nr.ResourceCapacity {
+		resourceCapacity[plugin] = types.RawParams(args)
+	}
+	for plugin, args := range nr.ResourceUsage {
+		resourceUsage[plugin] = types.RawParams(args)
+	}
+
 	return &pb.NodeResource{
 		Name:             nr.Name,
 		Diffs:            nr.Diffs,
-		ResourceCapacity: toRPCRawParamsMap(nr.ResourceCapacity),
-		ResourceUsage:    toRPCRawParamsMap(nr.ResourceUsage),
+		ResourceCapacity: toRPCResourceArgs(resourceCapacity),
+		ResourceUsage:    toRPCResourceArgs(resourceUsage),
 	}
 }
 
@@ -331,6 +323,12 @@ func toRPCCreateWorkloadMessage(c *types.CreateWorkloadMessage) *pb.CreateWorklo
 	if c == nil {
 		return nil
 	}
+
+	resourceArgs := map[string]types.RawParams{}
+	for plugin, args := range c.ResourceArgs {
+		resourceArgs[plugin] = types.RawParams(args)
+	}
+
 	msg := &pb.CreateWorkloadMessage{
 		Podname:      c.Podname,
 		Nodename:     c.Nodename,
@@ -339,7 +337,7 @@ func toRPCCreateWorkloadMessage(c *types.CreateWorkloadMessage) *pb.CreateWorklo
 		Success:      c.Error == nil,
 		Publish:      utils.EncodePublishInfo(c.Publish),
 		Hook:         utils.MergeHookOutputs(c.Hook),
-		ResourceArgs: toRPCRawParamsMap(c.ResourceArgs),
+		ResourceArgs: toRPCResourceArgs(resourceArgs),
 	}
 	if c.Error != nil {
 		msg.Error = c.Error.Error()
@@ -481,7 +479,7 @@ func toRPCWorkload(ctx context.Context, c *types.Workload) (*pb.Workload, error)
 	}
 	resourceArgs := map[string]types.RawParams{}
 	for plugin, args := range c.ResourceArgs {
-		resourceArgs[plugin] = args
+		resourceArgs[plugin] = types.RawParams(args)
 	}
 
 	return &pb.Workload{
@@ -495,7 +493,7 @@ func toRPCWorkload(ctx context.Context, c *types.Workload) (*pb.Workload, error)
 		Labels:       c.Labels,
 		Status:       toRPCWorkloadStatus(c.StatusMeta),
 		CreateTime:   c.CreateTime,
-		ResourceArgs: toRPCRawParamsMap(resourceArgs),
+		ResourceArgs: toRPCResourceArgs(resourceArgs),
 		Env:          c.Env,
 	}, nil
 }
@@ -556,27 +554,21 @@ func toCoreRemoveImageOptions(opts *pb.RemoveImageOptions) *types.ImageOptions {
 	}
 }
 
-func toCoreRawParams(params *pb.RawParams) map[string]interface{} {
+func toCoreRawParams(params map[string]*pb.RawParam) map[string]interface{} {
 	if params == nil {
 		return nil
 	}
 	res := map[string]interface{}{}
-	for _, param := range params.RawParams {
+	for key, param := range params {
 		if param.Value == nil {
-			res[param.Key] = nil
+			res[key] = nil
 			continue
 		}
 		switch param.Value.(type) {
-		case *pb.RawParam_Bool:
-			res[param.Key] = param.GetBool()
-		case *pb.RawParam_Int:
-			res[param.Key] = param.GetInt()
-		case *pb.RawParam_Float:
-			res[param.Key] = param.GetFloat()
-		case *pb.RawParam_String_:
-			res[param.Key] = param.GetString_()
+		case *pb.RawParam_Str:
+			res[key] = param.GetStr()
 		case *pb.RawParam_StringSlice:
-			res[param.Key] = param.GetStringSlice()
+			res[key] = param.GetStringSlice()
 		}
 	}
 	return res
@@ -614,3 +606,4 @@ func toCoreListImageOptions(opts *pb.ListImageOptions) *types.ImageOptions {
 		Filter:    opts.Filter,
 	}
 }
+
