@@ -11,6 +11,7 @@ type VirtualizationResource struct {
 	Volumes       []string                    `json:"volumes"`
 	VolumePlan    map[string]map[string]int64 `json:"volume_plan"`    // literal VolumePlan
 	VolumeChanged bool                        `json:"volume_changed"` // indicate whether new volumes contained in realloc request
+	Remap         bool                        `json:"remap"`
 }
 
 // VirtualizationCreateOptions use for create virtualization target

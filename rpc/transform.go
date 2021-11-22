@@ -568,7 +568,7 @@ func toCoreRawParams(params map[string]*pb.RawParam) map[string]interface{} {
 		case *pb.RawParam_Str:
 			res[key] = param.GetStr()
 		case *pb.RawParam_StringSlice:
-			res[key] = param.GetStringSlice()
+			res[key] = param.GetStringSlice().Slice
 		}
 	}
 	return res

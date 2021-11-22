@@ -144,15 +144,16 @@ func (bp *BinaryPlugin) call(ctx context.Context, cmd string, req interface{}, r
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
+	defer log.Infof(ctx, "[callBinaryPlugin] log from plugin %s: %s", bp.path, stderr.String())
+
 	log.Infof(ctx, "[callBinaryPlugin] command: %s %s", bp.path, strings.Join(args, " "))
 	if err := command.Run(); err != nil {
 		log.Errorf(ctx, "[callBinaryPlugin] failed to run plugin %s, command %v, err %s", bp.path, args, err)
 		return err
 	}
-	log.Infof(ctx, "[callBinaryPlugin] log from plugin %s: %s", bp.path, stderr.String())
 
 	stdoutBytes := stdout.Bytes()
-	log.Debugf(ctx, "[callBinaryPlugin] output from plugin %s: %s", bp.path, string(stdoutBytes))
+	log.Infof(ctx, "[callBinaryPlugin] output from plugin %s: %s", bp.path, string(stdoutBytes))
 	if len(stdoutBytes) == 0 {
 		stdoutBytes = []byte("{}")
 	}

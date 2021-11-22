@@ -14,6 +14,8 @@ import (
 
 // ReallocResource updates workload resource dynamically
 func (c *Calcium) ReallocResource(ctx context.Context, opts *types.ReallocOptions) (err error) {
+	logger := log.WithField("Calcium", "ReallocResource").WithField("opts", opts)
+
 	workload, err := c.GetWorkload(ctx, opts.ID)
 	if err != nil {
 		return
@@ -23,18 +25,17 @@ func (c *Calcium) ReallocResource(ctx context.Context, opts *types.ReallocOption
 	return c.withNodeLocked(ctx, workload.Nodename, func(ctx context.Context, node *types.Node) error {
 
 		return c.withWorkloadLocked(ctx, opts.ID, func(ctx context.Context, workload *types.Workload) error {
-			return c.doReallocOnNode(ctx, node, workload, &originWorkload, opts)
+			return logger.Err(ctx, c.doReallocOnNode(ctx, node, workload, &originWorkload, opts))
 		})
 	})
 }
 
 func (c *Calcium) doReallocOnNode(ctx context.Context, node *types.Node, workload *types.Workload, originWorkload *types.Workload, opts *types.ReallocOptions) error {
-	logger := log.WithField("Calcium", "ReallocResource").WithField("opts", opts)
 	var resourceArgs map[string]types.WorkloadResourceArgs
 	var engineArgs types.EngineArgs
 	var err error
 
-	return logger.Err(ctx, utils.Txn(
+	err = utils.Txn(
 		ctx,
 		// if: update workload resource
 		func(ctx context.Context) error {
@@ -63,5 +64,11 @@ func (c *Calcium) doReallocOnNode(ctx context.Context, node *types.Node, workloa
 			return errors.WithStack(c.store.UpdateWorkload(ctx, originWorkload))
 		},
 		c.config.GlobalTimeout,
-	))
+	)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	c.doRemapResourceAndLog(ctx, log.WithField("Calcium", "doReallocOnNode"), node)
+	return nil
 }
