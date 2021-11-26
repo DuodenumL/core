@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/resources/types"
 	coretypes "github.com/projecteru2/core/types"
 )
 
@@ -37,44 +36,44 @@ const (
 // Plugin resource plugin
 type Plugin interface {
 	// GetNodesCapacity returns available nodes and total capacity
-	GetNodesCapacity(ctx context.Context, nodes []string, resourceOpts coretypes.WorkloadResourceOpts) (capacityInfo map[string]*types.NodeCapacityInfo, total int, err error)
+	GetNodesCapacity(ctx context.Context, nodeNames []string, resourceOpts coretypes.WorkloadResourceOpts) (*GetNodesCapacityResponse, error)
 
-	// GetNodeResourceInfo returns total resource info and available resource info of the node, format: {"cpu": 2}
+	// GetNodeResourceInfo returns total resource info and available resource info of the nodeName, format: {"cpu": 2}
 	// also returns diffs, format: ["node.VolumeUsed != sum(workload.VolumeRequest"]
-	GetNodeResourceInfo(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs, diffs []string, err error)
+	GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (*GetNodeResourceInfoResponse, error)
 
 	// SetNodeResourceInfo sets both total node resource info and allocated resource info
 	// used for rollback of RemoveNode
 	// notice: here uses absolute values, not delta values
-	SetNodeResourceInfo(ctx context.Context, node string, resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs) error
+	SetNodeResourceInfo(ctx context.Context, nodeName string, resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs) (*SetNodeResourceInfoResponse, error)
 
 	// Alloc allocates resource, returns engine args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
 	// also returns resource args for each workload, format: [{"cpus": 1.2}, {"cpus": 1.2}]
 	// pure calculation
-	Alloc(ctx context.Context, node string, deployCount int, resourceOpts coretypes.WorkloadResourceOpts) ([]coretypes.EngineArgs, []coretypes.WorkloadResourceArgs, error)
+	Alloc(ctx context.Context, nodeName string, deployCount int, resourceOpts coretypes.WorkloadResourceOpts) (*AllocResponse, error)
 
 	// Realloc reallocates resource, returns engine args, delta resource args and final resource args.
 	// should return error if resource of some node is not enough for the realloc operation.
 	// pure calculation
-	Realloc(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (engineArgs coretypes.EngineArgs, deltaResourceArgs coretypes.WorkloadResourceArgs, finalResourceArgs coretypes.WorkloadResourceArgs, err error)
-	//Realloc2(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (map[string]coretypes.RawParams, map[string]coretypes.RawParams, error)
+	Realloc(ctx context.Context, nodeName string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (*ReallocResponse, error)
+	//Realloc2(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (*types.//Realloc2Response, error)
 
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
 	// pure calculation
-	Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]coretypes.EngineArgs, error)
+	Remap(ctx context.Context, nodeName string, workloadMap map[string]*coretypes.Workload) (*RemapResponse, error)
 
 	// UpdateNodeResourceUsage updates node resource usage
-	UpdateNodeResourceUsage(ctx context.Context, node string, resourceArgs []coretypes.WorkloadResourceArgs, incr bool) error
+	UpdateNodeResourceUsage(ctx context.Context, nodeName string, resourceArgs []coretypes.WorkloadResourceArgs, incr bool) (*UpdateNodeResourceUsageResponse, error)
 
 	// UpdateNodeResourceCapacity updates node resource capacity
-	UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts coretypes.NodeResourceOpts, incr bool) error
+	UpdateNodeResourceCapacity(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, incr bool) (*UpdateNodeResourceCapacityResponse, error)
 
 	// AddNode adds a node with requested resource, returns resource capacity and (empty) resource usage
 	// should return error if the node already exists
-	AddNode(ctx context.Context, node string, resourceOpts coretypes.NodeResourceOpts) (resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs, err error)
+	AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts) (*AddNodeResponse, error)
 
 	// RemoveNode removes node
-	RemoveNode(ctx context.Context, node string) error
+	RemoveNode(ctx context.Context, nodeName string) (*RemoveNodeResponse, error)
 
 	// Name returns the name of plugin
 	Name() string
@@ -129,7 +128,7 @@ func (bp *BinaryPlugin) getArgs(req interface{}) []string {
 	return args
 }
 
-// call calls plugin and gets json response
+// calls the plugin and gets json response
 func (bp *BinaryPlugin) call(ctx context.Context, cmd string, req interface{}, resp interface{}, timeout time.Duration) error {
 	if timeout == 0 {
 		timeout = bp.timeout
@@ -165,134 +164,134 @@ func (bp *BinaryPlugin) call(ctx context.Context, cmd string, req interface{}, r
 }
 
 // GetNodesCapacity .
-func (bp *BinaryPlugin) GetNodesCapacity(ctx context.Context, nodes []string, resourceOpts coretypes.WorkloadResourceOpts) (capacityInfo map[string]*types.NodeCapacityInfo, total int, err error) {
-	req := types.GetNodesCapacityRequest{
+func (bp *BinaryPlugin) GetNodesCapacity(ctx context.Context, nodes []string, resourceOpts coretypes.WorkloadResourceOpts) (resp *GetNodesCapacityResponse, err error) {
+	req := GetNodesCapacityRequest{
 		NodeNames:    nodes,
 		ResourceOpts: resourceOpts,
 	}
-	resp := &types.GetNodesCapacityResponse{}
+	resp = &GetNodesCapacityResponse{}
 	err = bp.call(ctx, getNodesCapacityCommand, req, resp, bp.timeout)
-	return resp.Nodes, resp.Total, err
+	return resp, err
 }
 
 // GetNodeResourceInfo .
-func (bp *BinaryPlugin) GetNodeResourceInfo(ctx context.Context, node string, workloads []*coretypes.Workload, fix bool) (resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs, diffs []string, err error) {
+func (bp *BinaryPlugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (resp *GetNodeResourceInfoResponse, err error) {
 	workloadMap := map[string]coretypes.WorkloadResourceArgs{}
 	for _, workload := range workloads {
 		workloadMap[workload.ID] = workload.ResourceArgs[bp.Name()]
 	}
 
-	req := types.GetNodeResourceInfoRequest{
-		NodeName:    node,
+	req := GetNodeResourceInfoRequest{
+		NodeName:    nodeName,
 		WorkloadMap: workloadMap,
 		Fix:         false,
 	}
-	resp := &types.GetNodeResourceInfoResponse{}
+	resp = &GetNodeResourceInfoResponse{}
 	if err = bp.call(ctx, getNodeResourceInfoCommand, req, resp, bp.timeout); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	return resp.ResourceInfo.Capacity, resp.ResourceInfo.Usage, diffs, nil
+	return resp, nil
 }
 
 // SetNodeResourceInfo .
-func (bp *BinaryPlugin) SetNodeResourceInfo(ctx context.Context, node string, resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs) error {
-	req := types.SetNodeResourceInfoRequest{
-		NodeName: node,
+func (bp *BinaryPlugin) SetNodeResourceInfo(ctx context.Context, nodeName string, resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs) (*SetNodeResourceInfoResponse, error) {
+	req := SetNodeResourceInfoRequest{
+		NodeName: nodeName,
 		Capacity: resourceCapacity,
 		Usage:    resourceUsage,
 	}
-	resp := &types.SetNodeResourceInfoResponse{}
-	return bp.call(ctx, setNodeResourceInfoCommand, req, resp, bp.timeout)
+	resp := &SetNodeResourceInfoResponse{}
+	return resp, bp.call(ctx, setNodeResourceInfoCommand, req, resp, bp.timeout)
 }
 
 // Alloc .
-func (bp *BinaryPlugin) Alloc(ctx context.Context, node string, deployCount int, resourceOpts coretypes.WorkloadResourceOpts) ([]coretypes.EngineArgs, []coretypes.WorkloadResourceArgs, error) {
-	req := types.AllocRequest{
-		NodeName:     node,
+func (bp *BinaryPlugin) Alloc(ctx context.Context, nodeName string, deployCount int, resourceOpts coretypes.WorkloadResourceOpts) (resp *AllocResponse, err error) {
+	req := AllocRequest{
+		NodeName:     nodeName,
 		DeployCount:  deployCount,
 		ResourceOpts: resourceOpts,
 	}
-	resp := &types.AllocResponse{}
+	resp = &AllocResponse{}
 	if err := bp.call(ctx, allocCommand, req, resp, bp.timeout); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return resp.EngineArgs, resp.ResourceArgs, nil
+	return resp, nil
 }
 
 // Realloc .
-func (bp *BinaryPlugin) Realloc(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (engineArgs coretypes.EngineArgs, deltaResourceArgs coretypes.WorkloadResourceArgs, finalResourceArgs coretypes.WorkloadResourceArgs, err error) {
-	req := types.ReallocRequest{
-		NodeName:     node,
+func (bp *BinaryPlugin) Realloc(ctx context.Context, nodeName string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (resp *ReallocResponse, err error) {
+	req := ReallocRequest{
+		NodeName:     nodeName,
 		Old:          originResourceArgs,
 		ResourceOpts: resourceOpts,
 	}
-	resp := &types.ReallocResponse{}
+	resp = &ReallocResponse{}
 	if err := bp.call(ctx, reallocCommand, req, resp, bp.timeout); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	return resp.EngineArgs, resp.Delta, resp.ResourceArgs, nil
+	return resp, nil
 }
 
 // Remap .
-func (bp *BinaryPlugin) Remap(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) (map[string]coretypes.EngineArgs, error) {
+func (bp *BinaryPlugin) Remap(ctx context.Context, nodeName string, workloadMap map[string]*coretypes.Workload) (*RemapResponse, error) {
 	workloadResourceArgsMap := map[string]coretypes.WorkloadResourceArgs{}
 	for workloadID, workload := range workloadMap {
 		workloadResourceArgsMap[workloadID] = workload.ResourceArgs[bp.Name()]
 	}
 
-	req := types.RemapRequest{
-		NodeName:    node,
+	req := RemapRequest{
+		NodeName:    nodeName,
 		WorkloadMap: workloadResourceArgsMap,
 	}
-	resp := &types.RemapResponse{}
+	resp := &RemapResponse{}
 	if err := bp.call(ctx, remapCommand, req, resp, bp.timeout); err != nil {
 		return nil, err
 	}
-	return resp.EngineArgsMap, nil
+	return resp, nil
 }
 
 // UpdateNodeResourceUsage .
-func (bp *BinaryPlugin) UpdateNodeResourceUsage(ctx context.Context, node string, resourceArgs []coretypes.WorkloadResourceArgs, incr bool) error {
-	req := types.UpdateNodeResourceUsageRequest{
-		NodeName:     node,
+func (bp *BinaryPlugin) UpdateNodeResourceUsage(ctx context.Context, nodeName string, resourceArgs []coretypes.WorkloadResourceArgs, incr bool) (*UpdateNodeResourceUsageResponse, error) {
+	req := UpdateNodeResourceUsageRequest{
+		NodeName:     nodeName,
 		ResourceArgs: resourceArgs,
 		Decr:         !incr,
 	}
-	resp := &types.UpdateNodeResourceUsageResponse{}
-	return bp.call(ctx, updateNodeResourceUsageCommand, req, resp, bp.timeout)
+	resp := &UpdateNodeResourceUsageResponse{}
+	return resp, bp.call(ctx, updateNodeResourceUsageCommand, req, resp, bp.timeout)
 }
 
 // UpdateNodeResourceCapacity ,
-func (bp *BinaryPlugin) UpdateNodeResourceCapacity(ctx context.Context, node string, resourceOpts coretypes.NodeResourceOpts, incr bool) error {
-	req := types.UpdateNodeResourceCapacityRequest{
-		NodeName:     node,
+func (bp *BinaryPlugin) UpdateNodeResourceCapacity(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, incr bool) (*UpdateNodeResourceCapacityResponse, error) {
+	req := UpdateNodeResourceCapacityRequest{
+		NodeName:     nodeName,
 		ResourceOpts: resourceOpts,
 		Decr:         !incr,
 	}
-	resp := &types.UpdateNodeResourceCapacityResponse{}
-	return bp.call(ctx, updateNodeResourceCapacityCommand, req, resp, bp.timeout)
+	resp := &UpdateNodeResourceCapacityResponse{}
+	return resp, bp.call(ctx, updateNodeResourceCapacityCommand, req, resp, bp.timeout)
 }
 
 // AddNode .
-func (bp *BinaryPlugin) AddNode(ctx context.Context, node string, resourceOpts coretypes.NodeResourceOpts) (resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs, err error) {
-	req := types.AddNodeRequest{
-		NodeName:     node,
+func (bp *BinaryPlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts) (resp *AddNodeResponse, err error) {
+	req := AddNodeRequest{
+		NodeName:     nodeName,
 		ResourceOpts: resourceOpts,
 	}
-	resp := &types.AddNodeResponse{}
+	resp = &AddNodeResponse{}
 	if err := bp.call(ctx, addNodeCommand, req, resp, bp.timeout); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return resp.Capacity, resp.Usage, nil
+	return resp, nil
 }
 
 // RemoveNode .
-func (bp *BinaryPlugin) RemoveNode(ctx context.Context, node string) error {
-	req := types.RemoveNodeRequest{
-		NodeName: node,
+func (bp *BinaryPlugin) RemoveNode(ctx context.Context, nodeName string) (*RemoveNodeResponse, error) {
+	req := RemoveNodeRequest{
+		NodeName: nodeName,
 	}
-	resp := &types.RemoveNodeResponse{}
-	return bp.call(ctx, removeNodeCommand, req, resp, bp.timeout)
+	resp := &RemoveNodeResponse{}
+	return resp, bp.call(ctx, removeNodeCommand, req, resp, bp.timeout)
 }
 
 // Name .

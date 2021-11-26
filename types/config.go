@@ -30,7 +30,7 @@ type Config struct {
 	Store               string        `yaml:"store" default:"etcd"`                          // store type
 
 	ResourcePluginsDir     string        `yaml:"resource_plugins_dir" default:"/etc/eru/resource_plugins"` // resource plugins path
-	ResourcePluginsTimeout time.Duration `yaml:"resource_plugins_timeout" default:"30s"`                    // timeout for calling resource plugins
+	ResourcePluginsTimeout time.Duration `yaml:"resource_plugins_timeout" default:"30s"`                   // timeout for calling resource plugins
 
 	Auth       AuthConfig `yaml:"auth"` // grpc auth
 	GRPCConfig GRPCConfig `yaml:"grpc"` // grpc config

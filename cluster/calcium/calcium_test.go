@@ -2,13 +2,14 @@ package calcium
 
 import (
 	"context"
-	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/resources/mocks"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/projecteru2/core/resources"
+	"github.com/projecteru2/core/resources/mocks"
 
 	sourcemocks "github.com/projecteru2/core/source/mocks"
 	storemocks "github.com/projecteru2/core/store/mocks"

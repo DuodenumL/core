@@ -22,7 +22,7 @@ deps:
 	env GO111MODULE=on go mod vendor
 
 binary:
-	CGO_ENABLED=0 go build -ldflags "$(GO_LDFLAGS)" -o eru-core
+	CGO_ENABLED=0 go build -ldflags "$(GO_LDFLAGS)" -gcflags=all=-G=3 -o eru-core
 
 build: deps binary
 
@@ -48,28 +48,23 @@ cloc:
 	cloc --exclude-dir=vendor,3rdmocks,mocks,tools,gen --not-match-f=test .
 
 unit-test:
-	go vet `go list ./... | grep -v '/vendor/' | grep -v '/tools'` && \
-	go test -race -timeout 240s -count=1 -cover ./utils/... \
+#	GOFLAGS="--gcflags=all=-G=3 -tags=typeparams" go vet `go list ./... | grep -v '/vendor/' | grep -v '/tools'` &&
+	go test -race -timeout 240s -count=1 -vet=off -cover ./utils/... \
 	./types/... \
 	./store/etcdv3/. \
 	./store/etcdv3/embedded/. \
 	./store/etcdv3/meta/. \
 	./source/common/... \
 	./strategy/... \
-	./scheduler/complex/... \
 	./rpc/. \
 	./lock/etcdlock/... \
 	./auth/simple/... \
 	./discovery/helium... \
-	./resources/types/. \
-	./resources/storage/... \
-	./resources/volume/... \
-	./resources/cpumem/... \
 	./wal/. \
 	./wal/kv/. \
 	./store/redis/... \
 	./lock/redis/... && \
-	go test -timeout 240s -count=1 -cover ./cluster/calcium/...
+	GOFLAGS="--gcflags=all=-G=3" go test -timeout 240s -count=1 -vet=off -cover ./cluster/calcium/...
 
 lint:
 	golangci-lint run

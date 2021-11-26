@@ -1,4 +1,4 @@
-package types
+package resources
 
 import "github.com/projecteru2/core/types"
 
@@ -40,8 +40,8 @@ type GetNodeResourceInfoRequest struct {
 }
 
 type GetNodeResourceInfoResponse struct {
-	ResourceInfo NodeResourceInfo `json:"resource_info"`
-	Diffs        []string         `json:"diffs"`
+	ResourceInfo *NodeResourceInfo `json:"resource_info"`
+	Diffs        []string          `json:"diffs"`
 }
 
 type SetNodeResourceInfoRequest struct {

@@ -14,32 +14,6 @@ func TestParseTriOption(t *testing.T) {
 	assert.True(t, ParseTriOption(TriKeep, true))
 }
 
-func TestSetNodeOptions(t *testing.T) {
-	o := &SetNodeOptions{
-		DeltaVolume:  VolumeMap{"/data": 1, "/data2": 2},
-		DeltaStorage: -10,
-	}
-	assert.Equal(t, ErrEmptyNodeName, errors.Unwrap(o.Validate()))
-
-	o.Nodename = "nodename"
-	assert.NoError(t, o.Validate())
-
-	o.Normalize(nil)
-	assert.EqualValues(t, -7, o.DeltaStorage)
-
-	node := &Node{
-		NodeMeta: NodeMeta{
-			InitVolume: VolumeMap{"/data0": 100, "/data1": 3},
-		},
-	}
-	o = &SetNodeOptions{
-		DeltaVolume:  VolumeMap{"/data0": 0, "/data1": 10},
-		DeltaStorage: 10,
-	}
-	o.Normalize(node)
-	assert.EqualValues(t, 10-100+10, o.DeltaStorage)
-}
-
 func TestDeployOptions(t *testing.T) {
 	assert := assert.New(t)
 

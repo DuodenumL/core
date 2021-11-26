@@ -2,7 +2,9 @@ package strategy
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
+
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/types"
 )

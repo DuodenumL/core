@@ -56,7 +56,6 @@ func (m *Mercury) doLoadProcessing(ctx context.Context, appname, entryname strin
 		}
 		nodesCount[nodename] += count
 	}
-	log.Debug(ctx, "[doLoadProcessing] Processing result: %+v", nodesCount)
+	log.Debugf(ctx, "[doLoadProcessing] Processing result: %+v", nodesCount)
 	return nodesCount, nil
 }
-

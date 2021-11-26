@@ -62,16 +62,6 @@ func TestAddNode(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSetNodeTranform(t *testing.T) {
-	b := &pb.SetNodeOptions{
-		Nodename: "a",
-		DeltaCpu: map[string]int32{"0": 1, "1": -1},
-	}
-	o, err := toCoreSetNodeOptions(b)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(o.DeltaCPU))
-}
-
 func TestRunAndWaitSync(t *testing.T) {
 	v := newVibranium()
 
@@ -87,7 +77,7 @@ func TestRunAndWaitSync(t *testing.T) {
 			Podname:      "pod",
 			Image:        "image",
 			OpenStdin:    false,
-			ResourceOpts: &pb.ResourceOptions{},
+			ResourceOpts: nil,
 		},
 		Cmd:   []byte("ping"),
 		Async: false,
@@ -146,7 +136,7 @@ func TestRunAndWaitAsync(t *testing.T) {
 			Podname:      "pod",
 			Image:        "image",
 			OpenStdin:    false,
-			ResourceOpts: &pb.ResourceOptions{},
+			ResourceOpts: nil,
 		},
 		Cmd:   []byte("ping"),
 		Async: true,

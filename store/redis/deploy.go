@@ -20,10 +20,8 @@ func (r *Rediaron) GetDeployStatus(ctx context.Context, appname, entryname strin
 		log.Warnf(ctx, "[MakeDeployStatus] Deploy status not found %s.%s", appname, entryname)
 	}
 
-	deployCount, err := r.doGetDeployStatus(ctx, data)
-	if err != nil {
-		return nil, err
-	}
+	deployCount := r.doGetDeployStatus(ctx, data)
+
 	processingCount, err := r.doLoadProcessing(ctx, appname, entryname)
 	if err != nil {
 		return nil, err
@@ -42,17 +40,13 @@ func (r *Rediaron) GetDeployStatus(ctx context.Context, appname, entryname strin
 }
 
 // doGetDeployStatus returns how many workload have been deployed on each node
-func (r *Rediaron) doGetDeployStatus(_ context.Context, data map[string]string) (map[string]int, error) {
+func (r *Rediaron) doGetDeployStatus(_ context.Context, data map[string]string) map[string]int {
 	nodesCount := map[string]int{}
 	for key := range data {
 		parts := strings.Split(key, "/")
 		nodename := parts[len(parts)-2]
-		if _, ok := nodesCount[nodename]; !ok {
-			nodesCount[nodename] = 1
-			continue
-		}
 		nodesCount[nodename]++
 	}
 
-	return nodesCount, nil
+	return nodesCount
 }

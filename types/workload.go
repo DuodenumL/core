@@ -35,7 +35,6 @@ type LabelMeta struct {
 // only relationship with pod and node is stored
 // if you wanna get realtime information, use Inspect method
 type Workload struct {
-	//ResourceMeta
 	ResourceArgs ResourceMeta           `json:"resource_args"`
 	EngineArgs   map[string]interface{} `json:"engine_args"`
 	ID           string                 `json:"id"`

@@ -4,11 +4,9 @@ import (
 	"context"
 
 	"github.com/projecteru2/core/log"
-	resourcetypes "github.com/projecteru2/core/resources/types"
+	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/strategy"
 	"github.com/projecteru2/core/types"
-
-	"github.com/pkg/errors"
 )
 
 // CalculateCapacity calculates capacity
@@ -36,10 +34,10 @@ func (c *Calcium) CalculateCapacity(ctx context.Context, opts *types.DeployOptio
 				msg.Total += capacity
 			}
 		} else {
-			var infos map[string]*resourcetypes.NodeCapacityInfo
-			infos, msg.Total, err = c.doCalculateCapacity(ctx, nodes, opts)
+			var infos map[string]*resources.NodeCapacityInfo
+			infos, msg.Total, err = c.resource.GetNodesCapacity(ctx, nodes, opts.ResourceOpts)
 			if err != nil {
-				logger.Errorf(ctx, "[Calcium.CalculateCapacity] doCalculateCapacity failed: %+v", err)
+				logger.Errorf(ctx, "[Calcium.CalculateCapacity] failed to get nodes capacity: %+v", err)
 				return err
 			}
 			for node, info := range infos {
@@ -48,23 +46,4 @@ func (c *Calcium) CalculateCapacity(ctx context.Context, opts *types.DeployOptio
 		}
 		return nil
 	})
-}
-
-func (c *Calcium) doCalculateCapacity(ctx context.Context, nodes []string, opts *types.DeployOptions) (
-	nodeResourceInfoMap map[string]*resourcetypes.NodeCapacityInfo,
-	total int,
-	err error,
-) {
-	if len(nodes) == 0 {
-		return nil, 0, errors.WithStack(types.ErrInsufficientNodes)
-	}
-
-	// get nodes with capacity > 0
-	nodeResourceInfoMap, total, err = c.resource.GetNodesCapacity(ctx, nodes, opts.ResourceOpts)
-	if err != nil {
-		log.Errorf(ctx, "[doGetDeployMap] failed to get available nodes,")
-		return nil, 0, err
-	}
-
-	return nodeResourceInfoMap, total, nil
 }

@@ -3,6 +3,12 @@ package mocks
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
+	"github.com/sanity-io/litter"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/projecteru2/core/engine"
 	enginemocks "github.com/projecteru2/core/engine/mocks"
 	types2 "github.com/projecteru2/core/engine/types"
@@ -12,17 +18,13 @@ import (
 	"github.com/projecteru2/core/store"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
-	"github.com/sanity-io/litter"
-	"github.com/stretchr/testify/mock"
-	"sync"
-	"time"
 )
 
 type MockStore struct {
 	Store
-	workloads sync.Map
-	nodes     sync.Map
-	locks     sync.Map
+	workloads *sync.Map
+	nodes     *sync.Map
+	locks     *sync.Map
 }
 
 var startVirtualizationCounter = 0
@@ -69,8 +71,8 @@ func getEngine() engine.API {
 	return m
 }
 
-func getNodes() sync.Map {
-	m := sync.Map{}
+func getNodes() *sync.Map {
+	m := &sync.Map{}
 	m.Store("node1", &types.Node{
 		NodeMeta: types.NodeMeta{
 			Name: "node1",
@@ -97,9 +99,9 @@ func getNodes() sync.Map {
 
 func FromTemplate() store.Store {
 	m := &MockStore{}
-	m.workloads = sync.Map{}
+	m.workloads = &sync.Map{}
 	m.nodes = getNodes()
-	m.locks = sync.Map{}
+	m.locks = &sync.Map{}
 
 	m.On("GetNodesByPod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(_ context.Context, _ string, _ map[string]string, _ bool) []*types.Node {
 		res := []*types.Node{}
@@ -152,7 +154,7 @@ func FromTemplate() store.Store {
 	m.On("GetDeployStatus", mock.Anything, mock.Anything, mock.Anything).Return(func(_ context.Context, appname, entryname string) map[string]int {
 		res := map[string]int{}
 		m.workloads.Range(func(_, workload interface{}) bool {
-			res[workload.(*types.Workload).Nodename] += 1
+			res[workload.(*types.Workload).Nodename]++
 			return true
 		})
 		return res

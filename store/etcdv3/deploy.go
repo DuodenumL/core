@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/projecteru2/core/log"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/projecteru2/core/log"
 )
 
 // GetDeployStatus get deploy status from store
@@ -21,10 +22,7 @@ func (m *Mercury) GetDeployStatus(ctx context.Context, appname, entryname string
 		log.Warnf(ctx, "[MakeDeployStatus] Deploy status not found %s.%s", appname, entryname)
 	}
 
-	deployCount, err := m.doGetDeployStatus(ctx, resp)
-	if err != nil {
-		return nil, err
-	}
+	deployCount := m.doGetDeployStatus(ctx, resp)
 
 	processingCount, err := m.doLoadProcessing(ctx, appname, entryname)
 	if err != nil {
@@ -44,7 +42,7 @@ func (m *Mercury) GetDeployStatus(ctx context.Context, appname, entryname string
 }
 
 // doGetDeployStatus returns how many workload have been deployed on each node
-func (m *Mercury) doGetDeployStatus(_ context.Context, resp *clientv3.GetResponse) (map[string]int, error) {
+func (m *Mercury) doGetDeployStatus(_ context.Context, resp *clientv3.GetResponse) map[string]int {
 	nodesCount := map[string]int{}
 	for _, ev := range resp.Kvs {
 		key := string(ev.Key)
@@ -57,5 +55,5 @@ func (m *Mercury) doGetDeployStatus(_ context.Context, resp *clientv3.GetRespons
 		nodesCount[nodename]++
 	}
 
-	return nodesCount, nil
+	return nodesCount
 }

@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	cpuMap           = "core.node.%s.cpu.%s"
-	memStats         = "core.node.%s.memory"
-	storageStats     = "core.node.%s.storage"
-	memUsedStats     = "core.node.%s.memory.used"
-	storageUsedStats = "core.node.%s.storage.used"
-	cpuUsedStats     = "core.node.%s.cpu.used"
-	deployCount      = "core.%s.deploy.count"
+	//cpuMap           = "core.node.%s.cpu.%s"
+	//memStats         = "core.node.%s.memory"
+	//storageStats     = "core.node.%s.storage"
+	//memUsedStats     = "core.node.%s.memory.used"
+	//storageUsedStats = "core.node.%s.storage.used"
+	//cpuUsedStats     = "core.node.%s.cpu.used"
+	deployCount = "core.%s.deploy.count"
 )
 
 // Metrics define metrics
@@ -56,14 +56,14 @@ func (m *Metrics) checkConn() error {
 	return nil
 }
 
-func (m *Metrics) gauge(key string, value float64) error {
-	if err := m.checkConn(); err != nil {
-		return err
-	}
-	m.statsdClient.Gauge(key, value)
-	return nil
-}
-
+//func (m *Metrics) gauge(key string, value float64) error {
+//	if err := m.checkConn(); err != nil {
+//		return err
+//	}
+//	m.statsdClient.Gauge(key, value)
+//	return nil
+//}
+//
 func (m *Metrics) count(key string, n int, rate float32) error {
 	if err := m.checkConn(); err != nil {
 		return err
@@ -71,6 +71,7 @@ func (m *Metrics) count(key string, n int, rate float32) error {
 	m.statsdClient.Count(key, n, rate)
 	return nil
 }
+
 //
 //// SendNodeInfo update node resource capacity
 //func (m *Metrics) SendNodeInfo(nm *types.NodeMetrics) {

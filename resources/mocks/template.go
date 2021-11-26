@@ -2,102 +2,113 @@ package mocks
 
 import (
 	"context"
-	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/resources/types"
-	coretypes "github.com/projecteru2/core/types"
+
 	"github.com/sanity-io/litter"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/projecteru2/core/log"
+	"github.com/projecteru2/core/resources"
+	coretypes "github.com/projecteru2/core/types"
 )
 
 func NewMockCpuPlugin() *Plugin {
 	m := &Plugin{}
-	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeCapacityInfo{
-		"node1": {
-			NodeName: "node1",
-			Capacity: 1,
-			Usage:    0.5,
-			Rate:     0.5,
-			Weight:   1,
-		},
-		"node2": {
-			NodeName: "node2",
-			Capacity: 2,
-			Usage:    0.5,
-			Rate:     0.5,
-			Weight:   1,
-		},
-	}, 6, nil)
-
-	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.RawParams) []coretypes.RawParams {
-		log.Infof(ctx, "[Alloc] alloc, node %s, deploy count %v, request %+v", node, deployCount, rawRequest)
-		return []coretypes.RawParams{
-			map[string]interface{}{
-				"cpu":  1.2,
-				"file": []string{"cpu"},
+	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetNodesCapacityResponse{
+		Nodes: map[string]*resources.NodeCapacityInfo{
+			"node1": {
+				NodeName: "node1",
+				Capacity: 1,
+				Usage:    0.5,
+				Rate:     0.5,
+				Weight:   1,
 			},
-		}
-	}, []coretypes.RawParams{
-		map[string]interface{}{
-			"cpu":  1.2,
-			"file": []string{"cpu"},
+			"node2": {
+				NodeName: "node2",
+				Capacity: 2,
+				Usage:    0.5,
+				Rate:     0.5,
+				Weight:   1,
+			},
 		},
+		Total: 6,
 	}, nil)
 
-	m.On("UpdateNodeResourceUsage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, resourceArgs []coretypes.RawParams, direction bool) error {
+	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.WorkloadResourceOpts) *resources.AllocResponse {
+		log.Infof(ctx, "[Alloc] alloc, node %s, deploy count %v, request %+v", node, deployCount, rawRequest)
+		return &resources.AllocResponse{
+			EngineArgs: []coretypes.EngineArgs{
+				map[string]interface{}{
+					"cpu":  1.2,
+					"file": []string{"cpu"},
+				},
+			},
+			ResourceArgs: []coretypes.WorkloadResourceArgs{
+				map[string]interface{}{
+					"cpu":  1.2,
+					"file": []string{"cpu"},
+				},
+			},
+		}
+	}, nil)
+
+	m.On("UpdateNodeResourceUsage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, func(ctx context.Context, node string, resourceArgs []coretypes.WorkloadResourceArgs, direction bool) error {
 		log.Infof(ctx, "[UpdateNodeResourceUsage] cpu-plugin UpdateNodeResourceUsage, incr %v, node %s, resource args %+v", direction, node, litter.Sdump(resourceArgs))
 		return nil
 	})
 
 	m.On("Name").Return("cpu-plugin")
 
-	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) map[string]coretypes.RawParams {
+	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) *resources.RemapResponse {
 		log.Infof(ctx, "[Remap] node %v", node)
-		res := map[string]coretypes.RawParams{}
+		res := map[string]coretypes.EngineArgs{}
 		for workloadID := range workloadMap {
 			res[workloadID] = map[string]interface{}{
 				"cpuset-cpus": []string{"0-65535"}, // I'm rich!
 			}
 		}
-		return res
+		return &resources.RemapResponse{EngineArgsMap: res}
 	}, nil)
 
 	m.On("GetNodeResourceInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
-		coretypes.RawParams{
-			"cpu": "100",
+		&resources.GetNodeResourceInfoResponse{
+			ResourceInfo: &resources.NodeResourceInfo{
+				Capacity: coretypes.NodeResourceArgs{
+					"cpu": 100,
+				},
+				Usage: coretypes.NodeResourceArgs{
+					"cpu": 100,
+				},
+			},
+			Diffs: []string{"cpu is sleepy"},
 		},
-		coretypes.RawParams{
-			"cpu": "100",
-		},
-		[]string{"cpu is sleepy"},
 		nil,
 	)
 
-	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.RawParams, resourceOpts coretypes.RawParams) coretypes.RawParams {
+	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) *resources.ReallocResponse {
 		log.Infof(ctx, "[Realloc] cpu-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
-		return coretypes.RawParams{
-			"cpu": 10086,
+		return &resources.ReallocResponse{
+			EngineArgs:   coretypes.EngineArgs{"cpu": 10086},
+			Delta:        coretypes.WorkloadResourceArgs{"cpu": 10086},
+			ResourceArgs: coretypes.WorkloadResourceArgs{"cpu": 10086},
 		}
-	}, coretypes.RawParams{
-		"cpu": 10086,
-	}, coretypes.RawParams{
-		"cpu": 10086,
 	}, nil)
 
-	m.On("AddNode", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, rawRequest coretypes.RawParams) coretypes.RawParams {
+	m.On("AddNode", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, rawRequest coretypes.NodeResourceOpts) *resources.AddNodeResponse {
 		log.Infof(ctx, "cpu-plugin add node %v, req: %+v", node, rawRequest)
-		return coretypes.RawParams{
-			"cpu": 65535,
+		return &resources.AddNodeResponse{
+			Capacity: coretypes.NodeResourceArgs{
+				"cpu": 65535,
+			},
+			Usage: coretypes.NodeResourceArgs{
+				"cpu": 0,
+			},
 		}
-	}, coretypes.RawParams{
-		"cpu": 0,
 	}, nil)
 
-	m.On("RemoveNode", mock.Anything, mock.Anything).Return(func(ctx context.Context, node string) error {
+	m.On("RemoveNode", mock.Anything, mock.Anything).Return(nil, func(ctx context.Context, node string) error {
 		log.Infof(ctx, "cpu-plugin remove node %v", node)
 		return nil
-	})
+	}, nil)
 
 	return m
 }
@@ -106,89 +117,104 @@ func NewMockMemPlugin() *Plugin {
 	m := &Plugin{}
 	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
 	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(map[string]*types.NodeCapacityInfo{
-		"node1": {
-			NodeName: "node1",
-			Capacity: 1,
-			Usage:    0.5,
-			Rate:     0.5,
-			Weight:   1,
-		},
-		"node2": {
-			NodeName: "node2",
-			Capacity: 2,
-			Usage:    0.5,
-			Rate:     0.5,
-			Weight:   1,
-		},
-		"node3": {
-			NodeName: "node3",
-			Capacity: 3,
-			Usage:    0.5,
-			Rate:     0.5,
-			Weight:   1,
-		},
-	}, 6, nil)
-
-	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.RawParams) []coretypes.RawParams {
-		log.Infof(ctx, "[Alloc] node %v, deploy count %v, raw request %v", node, deployCount, litter.Sdump(rawRequest))
-		return []coretypes.RawParams{
-			map[string]interface{}{
-				"mem":  "1PB",
-				"file": []string{"mem"},
+	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetNodesCapacityResponse{
+		Nodes: map[string]*resources.NodeCapacityInfo{
+			"node1": {
+				NodeName: "node1",
+				Capacity: 1,
+				Usage:    0.5,
+				Rate:     0.5,
+				Weight:   1,
 			},
-		}
-	}, []coretypes.RawParams{
-		map[string]interface{}{
-			"mem":  "1PB",
-			"file": []string{"mem"},
+			"node2": {
+				NodeName: "node2",
+				Capacity: 2,
+				Usage:    0.5,
+				Rate:     0.5,
+				Weight:   1,
+			},
+			"node3": {
+				NodeName: "node3",
+				Capacity: 3,
+				Usage:    0.5,
+				Rate:     0.5,
+				Weight:   1,
+			},
 		},
+		Total: 6,
 	}, nil)
 
-	m.On("UpdateNodeResourceUsage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, resourceArgs []coretypes.RawParams, direction bool) error {
+	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.WorkloadResourceOpts) *resources.AllocResponse {
+		log.Infof(ctx, "[Alloc] node %v, deploy count %v, raw request %v", node, deployCount, litter.Sdump(rawRequest))
+		return &resources.AllocResponse{
+			EngineArgs: []coretypes.EngineArgs{
+				map[string]interface{}{
+					"mem":  "1PB",
+					"file": []string{"mem"},
+				},
+			},
+			ResourceArgs: []coretypes.WorkloadResourceArgs{
+				map[string]interface{}{
+					"mem":  "1PB",
+					"file": []string{"mem"},
+				},
+			},
+		}
+	}, nil)
+
+	m.On("UpdateNodeResourceUsage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, func(ctx context.Context, node string, resourceArgs []coretypes.WorkloadResourceArgs, direction bool) error {
 		log.Infof(ctx, "[UpdateNodeResourceUsage] mem-plugin UpdateNodeResourceUsage, incr %v, node %s, resource args %+v", direction, node, litter.Sdump(resourceArgs))
 		return nil
 	})
 
 	m.On("Name").Return("mem-plugin")
 
-	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(map[string]coretypes.RawParams{}, nil)
+	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(&resources.RemapResponse{}, nil)
 
 	m.On("GetNodeResourceInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
-		coretypes.RawParams{
-			"mem_cap": "10000PB",
-		},
-		coretypes.RawParams{
-			"mem_cap": "10000PB",
-		},
-		[]string{"the mem_cap doesn't look like a machine on earth"},
-		nil,
-	)
+		&resources.GetNodeResourceInfoResponse{
+			ResourceInfo: &resources.NodeResourceInfo{
+				Capacity: coretypes.NodeResourceArgs{
+					"mem_cap": "10000PB",
+				},
+				Usage: coretypes.NodeResourceArgs{
+					"mem_cap": "10000PB",
+				},
+			},
+			Diffs: []string{"the mem_cap doesn't look like a machine on earth"},
+		}, nil)
 
-	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.RawParams, resourceOpts coretypes.RawParams) coretypes.RawParams {
+	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) *resources.ReallocResponse {
 		log.Infof(ctx, "[Realloc] mem-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
-		return coretypes.RawParams{
-			"mem": "1000000PB",
+		return &resources.ReallocResponse{
+			EngineArgs: coretypes.EngineArgs{
+				"mem": "1000000PB",
+			},
+			Delta: coretypes.WorkloadResourceArgs{
+				"mem": "1000000PB",
+			},
+			ResourceArgs: coretypes.WorkloadResourceArgs{
+				"mem": "1000000PB",
+			},
 		}
-	}, coretypes.RawParams{
-		"mem": "1000000PB",
-	}, coretypes.RawParams{
-		"mem": "1000000PB",
 	}, nil)
 
-	m.On("AddNode", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, rawRequest coretypes.RawParams) coretypes.RawParams {
+	m.On("AddNode", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, rawRequest coretypes.NodeResourceOpts) *resources.AddNodeResponse {
 		log.Infof(ctx, "mem-plugin add node %v, req: %+v", node, rawRequest)
-		return coretypes.RawParams{
-			"mem": 65535,
+		return &resources.AddNodeResponse{
+			Capacity: coretypes.NodeResourceArgs{
+				"mem": 65535,
+			},
+			Usage: coretypes.NodeResourceArgs{
+				"mem": 65535,
+			},
 		}
-	}, coretypes.RawParams{
-		"mem": 0,
 	}, nil)
 
-	m.On("RemoveNode", mock.Anything, mock.Anything).Return(func(ctx context.Context, node string) error {
+	m.On("RemoveNode", mock.Anything, mock.Anything).Return(func(ctx context.Context, node string) *resources.RemoveNodeResponse {
 		log.Infof(ctx, "mem-plugin remove node %v", node)
 		return nil
-	})
+	}, nil)
 
 	return m
 }

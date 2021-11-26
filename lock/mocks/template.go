@@ -2,8 +2,10 @@ package mocks
 
 import (
 	"context"
-	"github.com/projecteru2/core/lock"
+
 	"github.com/stretchr/testify/mock"
+
+	"github.com/projecteru2/core/lock"
 )
 
 func FromTemplate() lock.DistributedLock {
