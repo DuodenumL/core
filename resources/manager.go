@@ -284,7 +284,13 @@ func (pm *PluginManager) GetNodeResourceInfo(ctx context.Context, nodeName strin
 	resDiffs := []string{}
 
 	respMap := callPlugins(pm.plugins, func(plugin Plugin) (*GetNodeResourceInfoResponse, error) {
-		resp, err := plugin.GetNodeResourceInfo(ctx, nodeName, workloads, fix)
+		var resp *GetNodeResourceInfoResponse
+		var err error
+		if fix {
+			resp, err = plugin.FixNodeResource(ctx, nodeName, workloads)
+		} else {
+			resp, err = plugin.GetNodeResourceInfo(ctx, nodeName, workloads)
+		}
 		if err != nil {
 			log.Errorf(ctx, "[GetNodeResourceInfo] plugin %v failed to get node resource of node %v, err: %v", plugin.Name(), nodeName, err)
 		}
@@ -566,4 +572,33 @@ func (pm *PluginManager) RemoveNode(ctx context.Context, nodeName string) error 
 		},
 		pm.config.GlobalTimeout,
 	)
+}
+
+// GetMostIdleNode ,
+func (pm *PluginManager) GetMostIdleNode(ctx context.Context, nodeNames []string) (string, error) {
+	var mostIdleNode *GetMostIdleNodeResponse
+
+	respMap := callPlugins(pm.plugins, func(plugin Plugin) (*GetMostIdleNodeResponse, error) {
+		resp, err := plugin.GetMostIdleNode(ctx, nodeNames)
+		if err != nil {
+			log.Errorf(ctx, "[GetMostIdleNode] plugin %v failed to get the most idle node of %v, err: %v", plugin.Name(), nodeNames, err)
+		}
+		return resp, err
+	})
+
+	if len(respMap) != len(pm.plugins) {
+		log.Errorf(ctx, "[GetMostIdleNode] failed to get the most idle node of %v", nodeNames)
+		return "", types.ErrGetMostIdleNodeFailed
+	}
+
+	for _, resp := range respMap {
+		if mostIdleNode == nil || resp.Priority > mostIdleNode.Priority {
+			mostIdleNode = resp
+		}
+	}
+
+	if mostIdleNode == nil {
+		return "", types.ErrGetMostIdleNodeFailed
+	}
+	return mostIdleNode.NodeName, nil
 }

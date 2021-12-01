@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"path"
 	"reflect"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ const (
 	updateNodeResourceCapacityCommand = "update-capacity"
 	addNodeCommand                    = "add-node"
 	removeNodeCommand                 = "remove-node"
+	getMostIdleNodeCommand            = "get-idle"
 )
 
 // Plugin resource plugin
@@ -38,9 +40,12 @@ type Plugin interface {
 	// GetNodesCapacity returns available nodes and total capacity
 	GetNodesCapacity(ctx context.Context, nodeNames []string, resourceOpts coretypes.WorkloadResourceOpts) (*GetNodesCapacityResponse, error)
 
-	// GetNodeResourceInfo returns total resource info and available resource info of the nodeName, format: {"cpu": 2}
+	// GetNodeResourceInfo returns total resource info and available resource info of the node, format: {"cpu": 2}
 	// also returns diffs, format: ["node.VolumeUsed != sum(workload.VolumeRequest"]
-	GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (*GetNodeResourceInfoResponse, error)
+	GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (*GetNodeResourceInfoResponse, error)
+
+	// FixNodeResource fixes the node resource usage by its workloads
+	FixNodeResource(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (*GetNodeResourceInfoResponse, error)
 
 	// SetNodeResourceInfo sets both total node resource info and allocated resource info
 	// used for rollback of RemoveNode
@@ -56,7 +61,6 @@ type Plugin interface {
 	// should return error if resource of some node is not enough for the realloc operation.
 	// pure calculation
 	Realloc(ctx context.Context, nodeName string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (*ReallocResponse, error)
-	//Realloc2(ctx context.Context, workloads []*coretypes.Workload, resourceOpts coretypes.RawParams) (*types.//Realloc2Response, error)
 
 	// Remap remaps resources based on workload metadata and node resource usage, then returns engine args for workloads.
 	// pure calculation
@@ -74,6 +78,9 @@ type Plugin interface {
 
 	// RemoveNode removes node
 	RemoveNode(ctx context.Context, nodeName string) (*RemoveNodeResponse, error)
+
+	// GetMostIdleNode returns the most idle node for building
+	GetMostIdleNode(ctx context.Context, nodeNames []string) (*GetMostIdleNodeResponse, error)
 
 	// Name returns the name of plugin
 	Name() string
@@ -174,8 +181,7 @@ func (bp *BinaryPlugin) GetNodesCapacity(ctx context.Context, nodes []string, re
 	return resp, err
 }
 
-// GetNodeResourceInfo .
-func (bp *BinaryPlugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (resp *GetNodeResourceInfoResponse, err error) {
+func (bp *BinaryPlugin) getNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (resp *GetNodeResourceInfoResponse, err error) {
 	workloadMap := map[string]coretypes.WorkloadResourceArgs{}
 	for _, workload := range workloads {
 		workloadMap[workload.ID] = workload.ResourceArgs[bp.Name()]
@@ -184,13 +190,23 @@ func (bp *BinaryPlugin) GetNodeResourceInfo(ctx context.Context, nodeName string
 	req := GetNodeResourceInfoRequest{
 		NodeName:    nodeName,
 		WorkloadMap: workloadMap,
-		Fix:         false,
+		Fix:         fix,
 	}
 	resp = &GetNodeResourceInfoResponse{}
 	if err = bp.call(ctx, getNodeResourceInfoCommand, req, resp, bp.timeout); err != nil {
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetNodeResourceInfo .
+func (bp *BinaryPlugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (resp *GetNodeResourceInfoResponse, err error) {
+	return bp.getNodeResourceInfo(ctx, nodeName, workloads, false)
+}
+
+// FixNodeResource .
+func (bp *BinaryPlugin) FixNodeResource(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (resp *GetNodeResourceInfoResponse, err error) {
+	return bp.getNodeResourceInfo(ctx, nodeName, workloads, true)
 }
 
 // SetNodeResourceInfo .
@@ -294,7 +310,16 @@ func (bp *BinaryPlugin) RemoveNode(ctx context.Context, nodeName string) (*Remov
 	return resp, bp.call(ctx, removeNodeCommand, req, resp, bp.timeout)
 }
 
+// GetMostIdleNode .
+func (bp *BinaryPlugin) GetMostIdleNode(ctx context.Context, nodeNames []string) (*GetMostIdleNodeResponse, error) {
+	req := GetMostIdleNodeRequest{
+		NodeNames: nodeNames,
+	}
+	resp := &GetMostIdleNodeResponse{}
+	return resp, bp.call(ctx, getMostIdleNodeCommand, req, resp, bp.timeout)
+}
+
 // Name .
 func (bp *BinaryPlugin) Name() string {
-	return bp.path
+	return path.Base(bp.path)
 }

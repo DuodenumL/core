@@ -3,6 +3,7 @@ package calcium
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/projecteru2/core/resources"
 
@@ -86,6 +87,14 @@ func (c *Calcium) RemoveNode(ctx context.Context, nodename string) error {
 	})
 }
 
+func (c *Calcium) getNodeResourceInfo(ctx context.Context, node *types.Node) (err error) {
+	if node.ResourceCapacity, node.ResourceUsage, _, err = c.resource.GetNodeResourceInfo(ctx, node.Name, nil, false); err != nil {
+		log.Errorf(ctx, "[getNodeResourceInfo] failed to get node resource info for node %v, err: %v", node.Name, err)
+		return err
+	}
+	return nil
+}
+
 // ListPodNodes list nodes belong to pod
 func (c *Calcium) ListPodNodes(ctx context.Context, opts *types.ListNodesOptions) (<-chan *types.Node, error) {
 	logger := log.WithField("Calcium", "ListPodNodes").WithField("podname", opts.Podname).WithField("labels", opts.Labels).WithField("all", opts.All).WithField("info", opts.Info)
@@ -111,6 +120,9 @@ func (c *Calcium) ListPodNodes(ctx context.Context, opts *types.ListNodesOptions
 					if err != nil {
 						logger.Errorf(ctx, "failed to get node %v info: %+v", node.Name, err)
 					}
+					if err := c.getNodeResourceInfo(ctx, node); err != nil {
+						logger.Errorf(ctx, "failed to get node %v resource info: %+v", node.Name, err)
+					}
 					ch <- node
 				}
 			}(node))
@@ -130,7 +142,7 @@ func (c *Calcium) GetNode(ctx context.Context, nodename string) (*types.Node, er
 	if err != nil {
 		return nil, logger.Err(ctx, errors.WithStack(err))
 	}
-	node.ResourceCapacity, node.ResourceUsage, _, err = c.resource.GetNodeResourceInfo(ctx, nodename, nil, false)
+	err = c.getNodeResourceInfo(ctx, node)
 	if err != nil {
 		return nil, logger.Err(ctx, errors.WithStack(err))
 	}
@@ -203,7 +215,7 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 			n.Labels = opts.Labels
 		}
 
-		logger.Err(ctx, utils.Txn(ctx,
+		return logger.Err(ctx, utils.Txn(ctx,
 			// if: update node resource capacity success
 			func(ctx context.Context) error {
 				if len(opts.ResourceOpts) == 0 {

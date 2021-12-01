@@ -95,14 +95,20 @@ var (
 
 	ErrMessageChanClosed = errors.New("message chan closed")
 
-	ErrLockFailed = errors.New("lock failed")
-	ErrUnlockFailed = errors.New("unlock failed")
-	ErrGetAvailableNodesFailed = errors.New("get available nodes failed")
-	ErrAllocFailed = errors.New("alloc failed")
-	ErrRollbackFailed = errors.New("rollback failed")
-	ErrSetNodeResourceFailed = errors.New("set node resource failed")
-	ErrRemoveNodeFailed = errors.New("remove node failed")
-	ErrRemapFailed = errors.New("remap failed")
+	ErrLockFailed                       = errors.New("lock failed")
+	ErrUnlockFailed                     = errors.New("unlock failed")
+	ErrCallPluginsFailed                = errors.New("some plugins run failed")
+	ErrGetAvailableNodesFailed          = errors.New("get available nodes failed")
+	ErrAllocFailed                      = errors.New("alloc failed")
+	ErrUpdateNodeResourceUsageFailed    = errors.New("update node resource usage failed")
+	ErrRollbackFailed                   = errors.New("rollback failed")
+	ErrAddNodeFailed                    = errors.New("add node failed")
+	ErrRemoveNodeFailed                 = errors.New("remove node failed")
+	ErrRemapFailed                      = errors.New("remap failed")
+	ErrInvalidEngineArgs                = errors.New("invalid engine args")
+	ErrGetNodeResourceFailed            = errors.New("get node resource failed")
+	ErrReallocFailed                    = errors.New("realloc failed")
+	ErrUpdateNodeResourceCapacityFailed = errors.New("update node resource capacity failed")
 )
 
 type detailedErr struct {

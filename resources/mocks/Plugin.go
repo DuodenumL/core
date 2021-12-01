@@ -62,13 +62,13 @@ func (_m *Plugin) Alloc(ctx context.Context, nodeName string, deployCount int, r
 	return r0, r1
 }
 
-// GetNodeResourceInfo provides a mock function with given fields: ctx, nodeName, workloads, fix
-func (_m *Plugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*types.Workload, fix bool) (*resources.GetNodeResourceInfoResponse, error) {
-	ret := _m.Called(ctx, nodeName, workloads, fix)
+// FixNodeResource provides a mock function with given fields: ctx, nodeName, workloads
+func (_m *Plugin) FixNodeResource(ctx context.Context, nodeName string, workloads []*types.Workload) (*resources.GetNodeResourceInfoResponse, error) {
+	ret := _m.Called(ctx, nodeName, workloads)
 
 	var r0 *resources.GetNodeResourceInfoResponse
-	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload, bool) *resources.GetNodeResourceInfoResponse); ok {
-		r0 = rf(ctx, nodeName, workloads, fix)
+	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload) *resources.GetNodeResourceInfoResponse); ok {
+		r0 = rf(ctx, nodeName, workloads)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*resources.GetNodeResourceInfoResponse)
@@ -76,8 +76,31 @@ func (_m *Plugin) GetNodeResourceInfo(ctx context.Context, nodeName string, work
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload, bool) error); ok {
-		r1 = rf(ctx, nodeName, workloads, fix)
+	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload) error); ok {
+		r1 = rf(ctx, nodeName, workloads)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetNodeResourceInfo provides a mock function with given fields: ctx, nodeName, workloads
+func (_m *Plugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*types.Workload) (*resources.GetNodeResourceInfoResponse, error) {
+	ret := _m.Called(ctx, nodeName, workloads)
+
+	var r0 *resources.GetNodeResourceInfoResponse
+	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload) *resources.GetNodeResourceInfoResponse); ok {
+		r0 = rf(ctx, nodeName, workloads)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resources.GetNodeResourceInfoResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload) error); ok {
+		r1 = rf(ctx, nodeName, workloads)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -101,6 +124,29 @@ func (_m *Plugin) GetNodesCapacity(ctx context.Context, nodeNames []string, reso
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, []string, types.WorkloadResourceOpts) error); ok {
 		r1 = rf(ctx, nodeNames, resourceOpts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetMostIdleNode provides a mock function with given fields: ctx, nodeNames
+func (_m *Plugin) GetMostIdleNode(ctx context.Context, nodeNames []string) (*resources.GetMostIdleNodeResponse, error) {
+	ret := _m.Called(ctx, nodeNames)
+
+	var r0 *resources.GetMostIdleNodeResponse
+	if rf, ok := ret.Get(0).(func(context.Context, []string) *resources.GetMostIdleNodeResponse); ok {
+		r0 = rf(ctx, nodeNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resources.GetMostIdleNodeResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, nodeNames)
 	} else {
 		r1 = ret.Error(1)
 	}

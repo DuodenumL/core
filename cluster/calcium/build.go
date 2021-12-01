@@ -54,6 +54,21 @@ func (c *Calcium) BuildImage(ctx context.Context, opts *types.BuildOptions) (ch 
 	return ch, logger.Err(ctx, err)
 }
 
+func (c *Calcium) getMostIdleNode(ctx context.Context, nodes []*types.Node) (*types.Node, error) {
+	nodeNames := []string{}
+	nodeMap := map[string]*types.Node{}
+	for _, node := range nodes {
+		nodeNames = append(nodeNames, node.Name)
+		nodeMap[node.Name] = node
+	}
+
+	mostIdleNode, err := c.resource.GetMostIdleNode(ctx, nodeNames)
+	if err != nil {
+		return nil, err
+	}
+	return nodeMap[mostIdleNode], nil
+}
+
 func (c *Calcium) selectBuildNode(ctx context.Context) (*types.Node, error) {
 	// get pod from config
 	// TODO can choose multiple pod here for other engine support
@@ -74,11 +89,8 @@ func (c *Calcium) selectBuildNode(ctx context.Context) (*types.Node, error) {
 	if len(nodes) == 0 {
 		return nil, errors.WithStack(types.ErrInsufficientNodes)
 	}
-	// get idle max node
-	// node, err := c.scheduler.MaxIdleNode(nodes)
-	// TODO: node, err := c.resource.MaxIdleNode(nodes)
-	node := nodes[0]
-	return node, nil
+
+	return c.getMostIdleNode(ctx, nodes)
 }
 
 func (c *Calcium) buildFromSCM(ctx context.Context, node *types.Node, opts *types.BuildOptions) ([]string, io.ReadCloser, error) {
