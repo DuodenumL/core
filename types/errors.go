@@ -109,6 +109,7 @@ var (
 	ErrGetNodeResourceFailed            = errors.New("get node resource failed")
 	ErrReallocFailed                    = errors.New("realloc failed")
 	ErrUpdateNodeResourceCapacityFailed = errors.New("update node resource capacity failed")
+	ErrGetMostIdleNodeFailed            = errors.New("get most idle node failed")
 )
 
 type detailedErr struct {
@@ -153,3 +154,22 @@ var (
 	ErrNoFilesToSend = errors.New("no files to send")
 	ErrNoFilesToCopy = errors.New("no files to copy")
 )
+
+type combinedErr struct {
+	ErrMap map[string]error
+}
+
+// Error .
+func (e *combinedErr) Error() string {
+	return fmt.Sprintf("%+v", e.ErrMap)
+}
+
+// Append .
+func (e *combinedErr) Append(key string, err error) {
+	e.ErrMap[key] = err
+}
+
+// NewCombinedErr .
+func NewCombinedErr() *combinedErr {
+	return &combinedErr{ErrMap: map[string]error{}}
+}

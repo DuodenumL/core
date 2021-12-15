@@ -36,8 +36,6 @@ type VirtualizationCreateOptions struct {
 
 	Networks map[string]string
 
-	Volumes []string
-
 	LogType   string
 	LogConfig map[string]string
 

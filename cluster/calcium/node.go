@@ -12,7 +12,6 @@ import (
 	"github.com/projecteru2/core/utils"
 
 	"github.com/pkg/errors"
-	"github.com/sanity-io/litter"
 )
 
 // AddNode adds a node
@@ -133,17 +132,15 @@ func (c *Calcium) ListPodNodes(ctx context.Context, opts *types.ListNodesOptions
 }
 
 // GetNode get node
-func (c *Calcium) GetNode(ctx context.Context, nodename string) (*types.Node, error) {
+func (c *Calcium) GetNode(ctx context.Context, nodename string) (node *types.Node, err error) {
 	logger := log.WithField("Calcium", "GetNode").WithField("nodename", nodename)
 	if nodename == "" {
 		return nil, logger.Err(ctx, errors.WithStack(types.ErrEmptyNodeName))
 	}
-	node, err := c.store.GetNode(ctx, nodename)
-	if err != nil {
+	if node, err = c.store.GetNode(ctx, nodename); err != nil {
 		return nil, logger.Err(ctx, errors.WithStack(err))
 	}
-	err = c.getNodeResourceInfo(ctx, node)
-	if err != nil {
+	if err = c.getNodeResourceInfo(ctx, node); err != nil {
 		return nil, logger.Err(ctx, errors.WithStack(err))
 	}
 	return node, nil

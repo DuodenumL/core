@@ -39,13 +39,14 @@ func (c *Calcium) CreateWorkload(ctx context.Context, opts *types.DeployOptions)
 func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptions) chan *types.CreateWorkloadMessage {
 	logger := log.WithField("Calcium", "doCreateWorkloads").WithField("opts", opts)
 	ch := make(chan *types.CreateWorkloadMessage)
-	// map[node][]engineArgs
-	engineArgsMap := map[string][]types.EngineArgs{}
-	// map[node][]map[plugin]resourceArgs
-	resourceArgsMap := map[string][]map[string]types.WorkloadResourceArgs{}
+
 	var (
 		deployMap   map[string]int
 		rollbackMap map[string][]int
+		// map[node][]engineArgs
+		engineArgsMap = map[string][]types.EngineArgs{}
+		// map[node][]map[plugin]resourceArgs
+		resourceArgsMap = map[string][]map[string]types.WorkloadResourceArgs{}
 	)
 
 	utils.SentryGo(func() {
@@ -78,7 +79,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 
 					deployMap, err = c.doGetDeployMap(ctx, nodes, opts)
 					if err != nil {
-						return errors.WithStack(err)
+						return err
 					}
 
 					for node, deploy := range deployMap {

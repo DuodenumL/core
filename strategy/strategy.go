@@ -33,17 +33,17 @@ var Plans = map[string]strategyFunc{
 type strategyFunc = func(_ context.Context, _ []Info, need, total, limit int) (map[string]int, error)
 
 // Deploy .
-func Deploy(ctx context.Context, opts *types.DeployOptions, strategyInfos []Info, total int) (map[string]int, error) {
-	deployMethod, ok := Plans[opts.DeployStrategy]
+func Deploy(ctx context.Context, strategy string, count, nodesLimit int, strategyInfos []Info, total int) (map[string]int, error) {
+	deployMethod, ok := Plans[strategy]
 	if !ok {
 		return nil, errors.WithStack(types.ErrBadDeployStrategy)
 	}
-	if opts.Count <= 0 {
+	if count <= 0 {
 		return nil, errors.WithStack(types.ErrBadCount)
 	}
 
-	log.Debugf(ctx, "[strategy.Deploy] infos %+v, need %d, total %d, limit %d", strategyInfos, opts.Count, total, opts.NodesLimit)
-	return deployMethod(ctx, strategyInfos, opts.Count, total, opts.NodesLimit)
+	log.Debugf(ctx, "[strategy.Deploy] infos %+v, need %d, total %d, limit %d", strategyInfos, count, total, nodesLimit)
+	return deployMethod(ctx, strategyInfos, count, total, nodesLimit)
 }
 
 // Info .

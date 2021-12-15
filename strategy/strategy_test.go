@@ -40,11 +40,11 @@ func TestDeploy(t *testing.T) {
 		Count:          1,
 		NodesLimit:     3,
 	}
-	_, err := Deploy(context.TODO(), opts, nil, 2)
+	_, err := Deploy(context.TODO(), opts.DeployStrategy, opts.Count, opts.NodesLimit, nil, 2)
 	opts.DeployStrategy = "AUTO"
 	Plans["test"] = func(_ context.Context, _ []Info, _, _, _ int) (map[string]int, error) {
 		return nil, nil
 	}
-	_, err = Deploy(context.TODO(), opts, nil, 2)
+	_, err = Deploy(context.TODO(), opts.DeployStrategy, opts.Count, opts.NodesLimit, nil, 2)
 	assert.Error(t, err)
 }

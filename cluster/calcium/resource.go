@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/strategy"
@@ -89,14 +91,14 @@ func (c *Calcium) doGetDeployMap(ctx context.Context, nodes []string, opts *type
 	nodeResourceInfoMap, total, err := c.resource.GetNodesCapacity(ctx, nodes, opts.ResourceOpts)
 	if err != nil {
 		log.Errorf(ctx, "[doGetDeployMap] failed to select available nodes, nodes %v, err %v", nodes, err)
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	// get deployed & processing workload count on each node
 	deployStatusMap, err := c.store.GetDeployStatus(ctx, opts.Name, opts.Entrypoint.Name)
 	if err != nil {
 		log.Errorf(ctx, "failed to get deploy status for %v_%v, err %v", opts.Name, opts.Entrypoint.Name, err)
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	// generate strategy info
@@ -112,9 +114,9 @@ func (c *Calcium) doGetDeployMap(ctx context.Context, nodes []string, opts *type
 	}
 
 	// generate deploy plan
-	deployMap, err := strategy.Deploy(ctx, opts, strategyInfos, total)
+	deployMap, err := strategy.Deploy(ctx, opts.DeployStrategy, opts.Count, opts.NodesLimit, strategyInfos, total)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return deployMap, nil

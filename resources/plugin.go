@@ -9,7 +9,6 @@ import (
 	"path"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/projecteru2/core/log"
 	coretypes "github.com/projecteru2/core/types"
@@ -89,7 +88,7 @@ type Plugin interface {
 // BinaryPlugin .
 type BinaryPlugin struct {
 	path    string
-	timeout time.Duration
+	config  coretypes.Config
 }
 
 func (bp *BinaryPlugin) getArgs(req interface{}) []string {
@@ -136,16 +135,14 @@ func (bp *BinaryPlugin) getArgs(req interface{}) []string {
 }
 
 // calls the plugin and gets json response
-func (bp *BinaryPlugin) call(ctx context.Context, cmd string, req interface{}, resp interface{}, timeout time.Duration) error {
-	if timeout == 0 {
-		timeout = bp.timeout
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+func (bp *BinaryPlugin) call(ctx context.Context, cmd string, req interface{}, resp interface{}) error {
+	ctx, cancel := context.WithTimeout(ctx, bp.config.ResourcePluginsTimeout)
 	defer cancel()
 
 	args := bp.getArgs(req)
 	args = append([]string{cmd}, args...)
 	command := exec.CommandContext(ctx, bp.path, args...)
+	command.Dir = bp.config.ResourcePluginsDir
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &stderr
@@ -177,7 +174,7 @@ func (bp *BinaryPlugin) GetNodesCapacity(ctx context.Context, nodes []string, re
 		ResourceOpts: resourceOpts,
 	}
 	resp = &GetNodesCapacityResponse{}
-	err = bp.call(ctx, getNodesCapacityCommand, req, resp, bp.timeout)
+	err = bp.call(ctx, getNodesCapacityCommand, req, resp)
 	return resp, err
 }
 
@@ -193,7 +190,7 @@ func (bp *BinaryPlugin) getNodeResourceInfo(ctx context.Context, nodeName string
 		Fix:         fix,
 	}
 	resp = &GetNodeResourceInfoResponse{}
-	if err = bp.call(ctx, getNodeResourceInfoCommand, req, resp, bp.timeout); err != nil {
+	if err = bp.call(ctx, getNodeResourceInfoCommand, req, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -217,7 +214,7 @@ func (bp *BinaryPlugin) SetNodeResourceInfo(ctx context.Context, nodeName string
 		Usage:    resourceUsage,
 	}
 	resp := &SetNodeResourceInfoResponse{}
-	return resp, bp.call(ctx, setNodeResourceInfoCommand, req, resp, bp.timeout)
+	return resp, bp.call(ctx, setNodeResourceInfoCommand, req, resp)
 }
 
 // Alloc .
@@ -228,7 +225,7 @@ func (bp *BinaryPlugin) Alloc(ctx context.Context, nodeName string, deployCount 
 		ResourceOpts: resourceOpts,
 	}
 	resp = &AllocResponse{}
-	if err := bp.call(ctx, allocCommand, req, resp, bp.timeout); err != nil {
+	if err := bp.call(ctx, allocCommand, req, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -242,7 +239,7 @@ func (bp *BinaryPlugin) Realloc(ctx context.Context, nodeName string, originReso
 		ResourceOpts: resourceOpts,
 	}
 	resp = &ReallocResponse{}
-	if err := bp.call(ctx, reallocCommand, req, resp, bp.timeout); err != nil {
+	if err := bp.call(ctx, reallocCommand, req, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -260,7 +257,7 @@ func (bp *BinaryPlugin) Remap(ctx context.Context, nodeName string, workloadMap 
 		WorkloadMap: workloadResourceArgsMap,
 	}
 	resp := &RemapResponse{}
-	if err := bp.call(ctx, remapCommand, req, resp, bp.timeout); err != nil {
+	if err := bp.call(ctx, remapCommand, req, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -274,7 +271,7 @@ func (bp *BinaryPlugin) UpdateNodeResourceUsage(ctx context.Context, nodeName st
 		Decr:         !incr,
 	}
 	resp := &UpdateNodeResourceUsageResponse{}
-	return resp, bp.call(ctx, updateNodeResourceUsageCommand, req, resp, bp.timeout)
+	return resp, bp.call(ctx, updateNodeResourceUsageCommand, req, resp)
 }
 
 // UpdateNodeResourceCapacity ,
@@ -285,7 +282,7 @@ func (bp *BinaryPlugin) UpdateNodeResourceCapacity(ctx context.Context, nodeName
 		Decr:         !incr,
 	}
 	resp := &UpdateNodeResourceCapacityResponse{}
-	return resp, bp.call(ctx, updateNodeResourceCapacityCommand, req, resp, bp.timeout)
+	return resp, bp.call(ctx, updateNodeResourceCapacityCommand, req, resp)
 }
 
 // AddNode .
@@ -295,7 +292,7 @@ func (bp *BinaryPlugin) AddNode(ctx context.Context, nodeName string, resourceOp
 		ResourceOpts: resourceOpts,
 	}
 	resp = &AddNodeResponse{}
-	if err := bp.call(ctx, addNodeCommand, req, resp, bp.timeout); err != nil {
+	if err := bp.call(ctx, addNodeCommand, req, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -307,7 +304,7 @@ func (bp *BinaryPlugin) RemoveNode(ctx context.Context, nodeName string) (*Remov
 		NodeName: nodeName,
 	}
 	resp := &RemoveNodeResponse{}
-	return resp, bp.call(ctx, removeNodeCommand, req, resp, bp.timeout)
+	return resp, bp.call(ctx, removeNodeCommand, req, resp)
 }
 
 // GetMostIdleNode .
@@ -316,7 +313,7 @@ func (bp *BinaryPlugin) GetMostIdleNode(ctx context.Context, nodeNames []string)
 		NodeNames: nodeNames,
 	}
 	resp := &GetMostIdleNodeResponse{}
-	return resp, bp.call(ctx, getMostIdleNodeCommand, req, resp, bp.timeout)
+	return resp, bp.call(ctx, getMostIdleNodeCommand, req, resp)
 }
 
 // Name .
