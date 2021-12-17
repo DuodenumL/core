@@ -88,7 +88,7 @@ func (c *Calcium) doGetNodeResource(ctx context.Context, nodename string, fix bo
 }
 func (c *Calcium) doGetDeployMap(ctx context.Context, nodes []string, opts *types.DeployOptions) (map[string]int, error) {
 	// get nodes with capacity > 0
-	nodeResourceInfoMap, total, err := c.resource.GetNodesCapacity(ctx, nodes, opts.ResourceOpts)
+	nodeResourceInfoMap, total, err := c.resource.GetNodesDeployCapacity(ctx, nodes, opts.ResourceOpts)
 	if err != nil {
 		log.Errorf(ctx, "[doGetDeployMap] failed to select available nodes, nodes %v, err %v", nodes, err)
 		return nil, errors.WithStack(err)
@@ -140,7 +140,7 @@ func (c *Calcium) remapResource(ctx context.Context, node *types.Node) (ch chan 
 		workloadMap[workload.ID] = workload
 	}
 
-	engineArgsMap, err := c.resource.Remap(ctx, node.Name, workloadMap)
+	engineArgsMap, err := c.resource.GetRemapArgs(ctx, node.Name, workloadMap)
 	if err != nil {
 		return nil, err
 	}

@@ -217,12 +217,9 @@ type SetNodeOptions struct {
 	ResourceOpts  NodeResourceOpts
 	Labels        map[string]string
 	BypassOpt     TriOptions
-	Nodename      string
-	Endpoint      string
 	Ca            string
 	Cert          string
 	Key           string
-	WorkloadsDown bool
 }
 
 // Validate checks options

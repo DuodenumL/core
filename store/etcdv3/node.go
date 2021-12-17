@@ -232,7 +232,6 @@ func (m *Mercury) doGetNodes(ctx context.Context, kvs []*mvccpb.KeyValue, labels
 		if err := json.Unmarshal(ev.Value, node); err != nil {
 			return nil, err
 		}
-		node.Init()
 		node.Engine = &fake.Engine{}
 		if utils.FilterWorkload(node.Labels, labels) {
 			allNodes = append(allNodes, node)

@@ -46,6 +46,8 @@ func (n NodeMeta) DeepCopy() (nn NodeMeta, err error) {
 // Node store node info
 type Node struct {
 	NodeMeta
+	NodeInfo string `json:"-"`
+
 	ResourceCapacity map[string]NodeResourceArgs `json:"resource_capacity,omitempty"`
 	ResourceUsage    map[string]NodeResourceArgs `json:"resource_usage,omitempty"`
 

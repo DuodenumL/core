@@ -13,7 +13,7 @@ import (
 
 func NewMockCpuPlugin() *Plugin {
 	m := &Plugin{}
-	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetNodesCapacityResponse{
+	m.On("GetNodesDeployCapacity", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetNodesDeployCapacityResponse{
 		Nodes: map[string]*resources.NodeCapacityInfo{
 			"node1": {
 				NodeName: "node1",
@@ -33,9 +33,9 @@ func NewMockCpuPlugin() *Plugin {
 		Total: 6,
 	}, nil)
 
-	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.WorkloadResourceOpts) *resources.AllocResponse {
-		log.Infof(ctx, "[Alloc] alloc, node %s, deploy count %v, request %+v", node, deployCount, rawRequest)
-		return &resources.AllocResponse{
+	m.On("GetDeployArgs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.WorkloadResourceOpts) *resources.GetDeployArgsResponse {
+		log.Infof(ctx, "[GetDeployArgs] alloc, node %s, deploy count %v, request %+v", node, deployCount, rawRequest)
+		return &resources.GetDeployArgsResponse{
 			EngineArgs: []coretypes.EngineArgs{
 				map[string]interface{}{
 					"cpu":  1.2,
@@ -58,15 +58,15 @@ func NewMockCpuPlugin() *Plugin {
 
 	m.On("Name").Return("cpu-plugin")
 
-	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) *resources.RemapResponse {
-		log.Infof(ctx, "[Remap] node %v", node)
+	m.On("GetRemapArgs", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, workloadMap map[string]*coretypes.Workload) *resources.GetRemapArgsResponse {
+		log.Infof(ctx, "[GetRemapArgs] node %v", node)
 		res := map[string]coretypes.EngineArgs{}
 		for workloadID := range workloadMap {
 			res[workloadID] = map[string]interface{}{
 				"cpuset-cpus": []string{"0-65535"}, // I'm rich!
 			}
 		}
-		return &resources.RemapResponse{EngineArgsMap: res}
+		return &resources.GetRemapArgsResponse{EngineArgsMap: res}
 	}, nil)
 
 	m.On("GetNodeResourceInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
@@ -84,9 +84,9 @@ func NewMockCpuPlugin() *Plugin {
 		nil,
 	)
 
-	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) *resources.ReallocResponse {
-		log.Infof(ctx, "[Realloc] cpu-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
-		return &resources.ReallocResponse{
+	m.On("GetReallocArgs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) *resources.GetReallocArgsResponse {
+		log.Infof(ctx, "[GetReallocArgs] cpu-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
+		return &resources.GetReallocArgsResponse{
 			EngineArgs:   coretypes.EngineArgs{"cpu": 10086},
 			Delta:        coretypes.WorkloadResourceArgs{"cpu": 10086},
 			ResourceArgs: coretypes.WorkloadResourceArgs{"cpu": 10086},
@@ -117,7 +117,7 @@ func NewMockMemPlugin() *Plugin {
 	m := &Plugin{}
 	m.On("LockNodes", mock.Anything, mock.Anything).Return(nil)
 	m.On("UnlockNodes", mock.Anything, mock.Anything).Return(nil)
-	m.On("GetNodesCapacity", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetNodesCapacityResponse{
+	m.On("GetNodesDeployCapacity", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetNodesDeployCapacityResponse{
 		Nodes: map[string]*resources.NodeCapacityInfo{
 			"node1": {
 				NodeName: "node1",
@@ -144,9 +144,9 @@ func NewMockMemPlugin() *Plugin {
 		Total: 6,
 	}, nil)
 
-	m.On("Alloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.WorkloadResourceOpts) *resources.AllocResponse {
-		log.Infof(ctx, "[Alloc] node %v, deploy count %v, raw request %v", node, deployCount, litter.Sdump(rawRequest))
-		return &resources.AllocResponse{
+	m.On("GetDeployArgs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, deployCount int, rawRequest coretypes.WorkloadResourceOpts) *resources.GetDeployArgsResponse {
+		log.Infof(ctx, "[GetDeployArgs] node %v, deploy count %v, raw request %v", node, deployCount, litter.Sdump(rawRequest))
+		return &resources.GetDeployArgsResponse{
 			EngineArgs: []coretypes.EngineArgs{
 				map[string]interface{}{
 					"mem":  "1PB",
@@ -169,7 +169,7 @@ func NewMockMemPlugin() *Plugin {
 
 	m.On("Name").Return("mem-plugin")
 
-	m.On("Remap", mock.Anything, mock.Anything, mock.Anything).Return(&resources.RemapResponse{}, nil)
+	m.On("GetRemapArgs", mock.Anything, mock.Anything, mock.Anything).Return(&resources.GetRemapArgsResponse{}, nil)
 
 	m.On("GetNodeResourceInfo", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
 		&resources.GetNodeResourceInfoResponse{
@@ -184,9 +184,9 @@ func NewMockMemPlugin() *Plugin {
 			Diffs: []string{"the mem_cap doesn't look like a machine on earth"},
 		}, nil)
 
-	m.On("Realloc", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) *resources.ReallocResponse {
-		log.Infof(ctx, "[Realloc] mem-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
-		return &resources.ReallocResponse{
+	m.On("GetReallocArgs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, node string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) *resources.GetReallocArgsResponse {
+		log.Infof(ctx, "[GetReallocArgs] mem-plugin realloc workloads, resource opts: %v, resource args: %v", resourceOpts, originResourceArgs)
+		return &resources.GetReallocArgsResponse{
 			EngineArgs: coretypes.EngineArgs{
 				"mem": "1000000PB",
 			},

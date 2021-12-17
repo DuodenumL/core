@@ -83,7 +83,9 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 					}
 
 					for node, deploy := range deployMap {
-						engineArgsMap[node], resourceArgsMap[node], err = c.resource.Alloc(ctx, node, deploy, opts.ResourceOpts)
+						if engineArgsMap[node], resourceArgsMap[node], err = c.resource.GetDeployArgs(ctx, node, deploy, opts.ResourceOpts); err != nil {
+							return errors.WithStack(err)
+						}
 						if err = c.store.CreateProcessing(ctx, opts.GetProcessing(node), deploy); err != nil {
 							return errors.WithStack(err)
 						}
@@ -110,7 +112,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 						for _, idx := range rollbackIndices {
 							resourceArgsToRollback = append(resourceArgsToRollback, resourceArgsMap[nodename][idx])
 						}
-						return c.resource.UpdateNodeResourceUsage(ctx, nodename, resourceArgsToRollback, resources.Decr)
+						return c.resource.SetNodeResourceUsage(ctx, nodename, nil, nil, resourceArgsToRollback, true, resources.Decr)
 					}); e != nil {
 						err = logger.Err(ctx, e)
 					}

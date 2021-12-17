@@ -135,7 +135,6 @@ func TestSetNode(t *testing.T) {
 	ctx := context.Background()
 	name := "test"
 	node := &types.Node{NodeMeta: types.NodeMeta{Name: name}}
-	node.Init()
 
 	store := &storemocks.Store{}
 	c.store = store

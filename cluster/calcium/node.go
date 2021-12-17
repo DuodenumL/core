@@ -3,7 +3,8 @@ package calcium
 import (
 	"context"
 	"sort"
-	"sync"
+
+	"github.com/sanity-io/litter"
 
 	"github.com/projecteru2/core/resources"
 
@@ -189,7 +190,6 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 	var n *types.Node
 	return n, c.withNodeLocked(ctx, opts.Nodename, func(ctx context.Context, node *types.Node) error {
 		litter.Dump(opts)
-		opts.Normalize(node)
 		n = node
 
 		n.Bypass = (opts.BypassOpt == types.TriTrue) || (opts.BypassOpt == types.TriKeep && n.Bypass)
@@ -218,7 +218,7 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 				if len(opts.ResourceOpts) == 0 {
 					return nil
 				}
-				return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, resources.Incr))
+				return errors.WithStack(c.resource.SetNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, nil, true, resources.Incr))
 			},
 			// then: update node metadata
 			func(ctx context.Context) error {
@@ -232,7 +232,7 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 				if len(opts.ResourceOpts) == 0 {
 					return nil
 				}
-				return errors.WithStack(c.resource.UpdateNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, resources.Decr))
+				return errors.WithStack(c.resource.SetNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, nil, true, resources.Decr))
 			},
 			c.config.GlobalTimeout,
 		))

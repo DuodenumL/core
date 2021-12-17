@@ -130,20 +130,6 @@ func (r *Rediaron) UpdateNodes(ctx context.Context, nodes ...*types.Node) error 
 	return errors.WithStack(r.BatchPut(ctx, data))
 }
 
-// UpdateNodeResource update cpu and memory on a node, either add or subtract
-func (r *Rediaron) UpdateNodeResource(ctx context.Context, node *types.Node, resource *types.ResourceMeta, action string) error {
-	switch action {
-	case store.ActionIncr:
-		node.RecycleResources(resource)
-	case store.ActionDecr:
-		node.PreserveResources(resource)
-	default:
-		return types.ErrUnknownControlType
-	}
-	go metrics.Client.SendNodeInfo(node.Metrics())
-	return r.UpdateNodes(ctx, node)
-}
-
 func (r *Rediaron) makeClient(ctx context.Context, node *types.Node) (client engine.API, err error) {
 	// try to get from cache without ca/cert/key
 	if client = enginefactory.GetEngineFromCache(node.Endpoint, "", "", ""); client != nil {
@@ -236,7 +222,6 @@ func (r *Rediaron) doGetNodes(ctx context.Context, kvs map[string]string, labels
 		if err := json.Unmarshal([]byte(value), node); err != nil {
 			return nil, err
 		}
-		node.Init()
 		node.Engine = &fake.Engine{}
 		if utils.FilterWorkload(node.Labels, labels) {
 			allNodes = append(allNodes, node)

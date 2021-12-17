@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -606,4 +607,3 @@ func toCoreListImageOptions(opts *pb.ListImageOptions) *types.ImageOptions {
 		Filter:    opts.Filter,
 	}
 }
-

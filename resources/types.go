@@ -21,14 +21,14 @@ type NodeResourceInfo struct {
 	Usage    types.NodeResourceArgs `json:"usage"`
 }
 
-// GetNodesCapacityRequest .
-type GetNodesCapacityRequest struct {
+// GetNodesDeployCapacityRequest .
+type GetNodesDeployCapacityRequest struct {
 	NodeNames    []string                   `json:"node"`
 	ResourceOpts types.WorkloadResourceOpts `json:"resource-opts"`
 }
 
-// GetNodesCapacityResponse .
-type GetNodesCapacityResponse struct {
+// GetNodesDeployCapacityResponse .
+type GetNodesDeployCapacityResponse struct {
 	Nodes map[string]*NodeCapacityInfo `json:"nodes"`
 	Total int                          `json:"total"`
 }
@@ -56,42 +56,73 @@ type SetNodeResourceInfoRequest struct {
 // SetNodeResourceInfoResponse .
 type SetNodeResourceInfoResponse struct{}
 
-// AllocRequest .
-type AllocRequest struct {
+// GetDeployArgsRequest .
+type GetDeployArgsRequest struct {
 	NodeName     string                     `json:"node"`
 	DeployCount  int                        `json:"deploy"`
 	ResourceOpts types.WorkloadResourceOpts `json:"resource-opts"`
 }
 
-// AllocResponse .
-type AllocResponse struct {
+// GetDeployArgsResponse .
+type GetDeployArgsResponse struct {
 	EngineArgs   []types.EngineArgs           `json:"engine_args"`
 	ResourceArgs []types.WorkloadResourceArgs `json:"resource_args"`
 }
 
-// ReallocRequest .
-type ReallocRequest struct {
+// GetReallocArgsRequest .
+type GetReallocArgsRequest struct {
 	NodeName     string                     `json:"node"`
 	Old          types.WorkloadResourceArgs `json:"old"`
 	ResourceOpts types.WorkloadResourceOpts `json:"resource-opts"`
 }
 
-// ReallocResponse .
-type ReallocResponse struct {
+// GetReallocArgsResponse .
+type GetReallocArgsResponse struct {
 	EngineArgs   types.EngineArgs           `json:"engine_args"`
 	Delta        types.WorkloadResourceArgs `json:"delta"`
 	ResourceArgs types.WorkloadResourceArgs `json:"resource_args"`
 }
 
-// RemapRequest .
-type RemapRequest struct {
+// GetRemapArgsRequest .
+type GetRemapArgsRequest struct {
 	NodeName    string                                `json:"node"`
 	WorkloadMap map[string]types.WorkloadResourceArgs `json:"workload-map"`
 }
 
-// RemapResponse .
-type RemapResponse struct {
+// GetRemapArgsResponse .
+type GetRemapArgsResponse struct {
 	EngineArgsMap map[string]types.EngineArgs `json:"engine_args_map"`
+}
+
+// SetNodeResourceUsageRequest .
+type SetNodeResourceUsageRequest struct {
+	NodeName             string                       `json:"node"`
+	WorkloadResourceArgs []types.WorkloadResourceArgs `json:"workload-resource-args"`
+	NodeResourceOpts     types.NodeResourceOpts       `json:"node-resource-opts"`
+	NodeResourceArgs     types.NodeResourceArgs       `json:"node-resource-args"`
+	Delta                bool                         `json:"delta"`
+	Decr                 bool                         `json:"decr"`
+}
+
+// SetNodeResourceUsageResponse .
+type SetNodeResourceUsageResponse struct {
+	Before types.NodeResourceArgs `json:"before"`
+	After  types.NodeResourceArgs `json:"after"`
+}
+
+// SetNodeResourceCapacityRequest .
+type SetNodeResourceCapacityRequest struct {
+	NodeName         string                 `json:"node"`
+	NodeResourceOpts types.NodeResourceOpts `json:"node-resource-opts"`
+	NodeResourceArgs types.NodeResourceArgs `json:"node-resource-args"`
+	Delta            bool                   `json:"delta"`
+	Decr             bool                   `json:"decr"`
+}
+
+// SetNodeResourceCapacityResponse .
+type SetNodeResourceCapacityResponse struct {
+	Before types.NodeResourceArgs `json:"before"`
+	After  types.NodeResourceArgs `json:"after"`
 }
 
 // UpdateNodeResourceUsageRequest .

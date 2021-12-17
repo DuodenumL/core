@@ -39,29 +39,6 @@ func (_m *Plugin) AddNode(ctx context.Context, nodeName string, resourceOpts typ
 	return r0, r1
 }
 
-// Alloc provides a mock function with given fields: ctx, nodeName, deployCount, resourceOpts
-func (_m *Plugin) Alloc(ctx context.Context, nodeName string, deployCount int, resourceOpts types.WorkloadResourceOpts) (*resources.AllocResponse, error) {
-	ret := _m.Called(ctx, nodeName, deployCount, resourceOpts)
-
-	var r0 *resources.AllocResponse
-	if rf, ok := ret.Get(0).(func(context.Context, string, int, types.WorkloadResourceOpts) *resources.AllocResponse); ok {
-		r0 = rf(ctx, nodeName, deployCount, resourceOpts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*resources.AllocResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, int, types.WorkloadResourceOpts) error); ok {
-		r1 = rf(ctx, nodeName, deployCount, resourceOpts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // FixNodeResource provides a mock function with given fields: ctx, nodeName, workloads
 func (_m *Plugin) FixNodeResource(ctx context.Context, nodeName string, workloads []*types.Workload) (*resources.GetNodeResourceInfoResponse, error) {
 	ret := _m.Called(ctx, nodeName, workloads)
@@ -85,45 +62,22 @@ func (_m *Plugin) FixNodeResource(ctx context.Context, nodeName string, workload
 	return r0, r1
 }
 
-// GetNodeResourceInfo provides a mock function with given fields: ctx, nodeName, workloads
-func (_m *Plugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*types.Workload) (*resources.GetNodeResourceInfoResponse, error) {
-	ret := _m.Called(ctx, nodeName, workloads)
+// GetDeployArgs provides a mock function with given fields: ctx, nodeName, deployCount, resourceOpts
+func (_m *Plugin) GetDeployArgs(ctx context.Context, nodeName string, deployCount int, resourceOpts types.WorkloadResourceOpts) (*resources.GetDeployArgsResponse, error) {
+	ret := _m.Called(ctx, nodeName, deployCount, resourceOpts)
 
-	var r0 *resources.GetNodeResourceInfoResponse
-	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload) *resources.GetNodeResourceInfoResponse); ok {
-		r0 = rf(ctx, nodeName, workloads)
+	var r0 *resources.GetDeployArgsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, types.WorkloadResourceOpts) *resources.GetDeployArgsResponse); ok {
+		r0 = rf(ctx, nodeName, deployCount, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*resources.GetNodeResourceInfoResponse)
+			r0 = ret.Get(0).(*resources.GetDeployArgsResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload) error); ok {
-		r1 = rf(ctx, nodeName, workloads)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetNodesCapacity provides a mock function with given fields: ctx, nodeNames, resourceOpts
-func (_m *Plugin) GetNodesCapacity(ctx context.Context, nodeNames []string, resourceOpts types.WorkloadResourceOpts) (*resources.GetNodesCapacityResponse, error) {
-	ret := _m.Called(ctx, nodeNames, resourceOpts)
-
-	var r0 *resources.GetNodesCapacityResponse
-	if rf, ok := ret.Get(0).(func(context.Context, []string, types.WorkloadResourceOpts) *resources.GetNodesCapacityResponse); ok {
-		r0 = rf(ctx, nodeNames, resourceOpts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*resources.GetNodesCapacityResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, []string, types.WorkloadResourceOpts) error); ok {
-		r1 = rf(ctx, nodeNames, resourceOpts)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int, types.WorkloadResourceOpts) error); ok {
+		r1 = rf(ctx, nodeName, deployCount, resourceOpts)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -154,30 +108,62 @@ func (_m *Plugin) GetMostIdleNode(ctx context.Context, nodeNames []string) (*res
 	return r0, r1
 }
 
-// Name provides a mock function with given fields:
-func (_m *Plugin) Name() string {
-	ret := _m.Called()
+// GetNodeResourceInfo provides a mock function with given fields: ctx, nodeName, workloads
+func (_m *Plugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*types.Workload) (*resources.GetNodeResourceInfoResponse, error) {
+	ret := _m.Called(ctx, nodeName, workloads)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
+	var r0 *resources.GetNodeResourceInfoResponse
+	if rf, ok := ret.Get(0).(func(context.Context, string, []*types.Workload) *resources.GetNodeResourceInfoResponse); ok {
+		r0 = rf(ctx, nodeName, workloads)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resources.GetNodeResourceInfoResponse)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, []*types.Workload) error); ok {
+		r1 = rf(ctx, nodeName, workloads)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// Realloc provides a mock function with given fields: ctx, nodeName, originResourceArgs, resourceOpts
-func (_m *Plugin) Realloc(ctx context.Context, nodeName string, originResourceArgs types.WorkloadResourceArgs, resourceOpts types.WorkloadResourceOpts) (*resources.ReallocResponse, error) {
+// GetNodesDeployCapacity provides a mock function with given fields: ctx, nodeNames, resourceOpts
+func (_m *Plugin) GetNodesDeployCapacity(ctx context.Context, nodeNames []string, resourceOpts types.WorkloadResourceOpts) (*resources.GetNodesDeployCapacityResponse, error) {
+	ret := _m.Called(ctx, nodeNames, resourceOpts)
+
+	var r0 *resources.GetNodesDeployCapacityResponse
+	if rf, ok := ret.Get(0).(func(context.Context, []string, types.WorkloadResourceOpts) *resources.GetNodesDeployCapacityResponse); ok {
+		r0 = rf(ctx, nodeNames, resourceOpts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*resources.GetNodesDeployCapacityResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, []string, types.WorkloadResourceOpts) error); ok {
+		r1 = rf(ctx, nodeNames, resourceOpts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetReallocArgs provides a mock function with given fields: ctx, nodeName, originResourceArgs, resourceOpts
+func (_m *Plugin) GetReallocArgs(ctx context.Context, nodeName string, originResourceArgs types.WorkloadResourceArgs, resourceOpts types.WorkloadResourceOpts) (*resources.GetReallocArgsResponse, error) {
 	ret := _m.Called(ctx, nodeName, originResourceArgs, resourceOpts)
 
-	var r0 *resources.ReallocResponse
-	if rf, ok := ret.Get(0).(func(context.Context, string, types.WorkloadResourceArgs, types.WorkloadResourceOpts) *resources.ReallocResponse); ok {
+	var r0 *resources.GetReallocArgsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, string, types.WorkloadResourceArgs, types.WorkloadResourceOpts) *resources.GetReallocArgsResponse); ok {
 		r0 = rf(ctx, nodeName, originResourceArgs, resourceOpts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*resources.ReallocResponse)
+			r0 = ret.Get(0).(*resources.GetReallocArgsResponse)
 		}
 	}
 
@@ -191,16 +177,16 @@ func (_m *Plugin) Realloc(ctx context.Context, nodeName string, originResourceAr
 	return r0, r1
 }
 
-// Remap provides a mock function with given fields: ctx, nodeName, workloadMap
-func (_m *Plugin) Remap(ctx context.Context, nodeName string, workloadMap map[string]*types.Workload) (*resources.RemapResponse, error) {
+// GetRemapArgs provides a mock function with given fields: ctx, nodeName, workloadMap
+func (_m *Plugin) GetRemapArgs(ctx context.Context, nodeName string, workloadMap map[string]*types.Workload) (*resources.GetRemapArgsResponse, error) {
 	ret := _m.Called(ctx, nodeName, workloadMap)
 
-	var r0 *resources.RemapResponse
-	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]*types.Workload) *resources.RemapResponse); ok {
+	var r0 *resources.GetRemapArgsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]*types.Workload) *resources.GetRemapArgsResponse); ok {
 		r0 = rf(ctx, nodeName, workloadMap)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*resources.RemapResponse)
+			r0 = ret.Get(0).(*resources.GetRemapArgsResponse)
 		}
 	}
 
@@ -212,6 +198,20 @@ func (_m *Plugin) Remap(ctx context.Context, nodeName string, workloadMap map[st
 	}
 
 	return r0, r1
+}
+
+// Name provides a mock function with given fields:
+func (_m *Plugin) Name() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
 }
 
 // RemoveNode provides a mock function with given fields: ctx, nodeName

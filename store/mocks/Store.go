@@ -152,6 +152,29 @@ func (_m *Store) GetAllPods(ctx context.Context) ([]*types.Pod, error) {
 	return r0, r1
 }
 
+// GetDeployStatus provides a mock function with given fields: ctx, appname, entryname
+func (_m *Store) GetDeployStatus(ctx context.Context, appname string, entryname string) (map[string]int, error) {
+	ret := _m.Called(ctx, appname, entryname)
+
+	var r0 map[string]int
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) map[string]int); ok {
+		r0 = rf(ctx, appname, entryname)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, appname, entryname)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetNode provides a mock function with given fields: ctx, nodename
 func (_m *Store) GetNode(ctx context.Context, nodename string) (*types.Node, error) {
 	ret := _m.Called(ctx, nodename)
