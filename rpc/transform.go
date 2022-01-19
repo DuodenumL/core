@@ -150,6 +150,7 @@ func toCoreSetNodeOptions(b *pb.SetNodeOptions) (*types.SetNodeOptions, error) {
 		Key:           b.Key,
 		WorkloadsDown: b.WorkloadsDown,
 		ResourceOpts:  toCoreRawParams(b.ResourceOpts),
+		Delta:         b.Delta,
 		Labels:        b.Labels,
 		BypassOpt:     types.TriOptions(b.BypassOpt),
 	}

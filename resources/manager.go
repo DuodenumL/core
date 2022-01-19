@@ -19,13 +19,13 @@ type PluginManager struct {
 }
 
 // NewPluginManager creates a plugin manager
-func NewPluginManager(ctx context.Context, config types.Config) *PluginManager {
+func NewPluginManager(ctx context.Context, config types.Config) (*PluginManager, error) {
 	pm := &PluginManager{
 		config:  config,
 		plugins: []Plugin{},
 	}
-	pm.LoadPlugins(ctx)
-	return pm
+
+	return pm, nil
 }
 
 // LoadPlugins .
@@ -96,7 +96,7 @@ func callPlugins[T any](ctx context.Context, plugins []Plugin, f func(Plugin) (T
 	return results, combinedErr
 }
 
-func (pm *PluginManager) mergeNodeResourceInfo(m1 map[string]*NodeCapacityInfo, m2 map[string]*NodeCapacityInfo) map[string]*NodeCapacityInfo {
+func (pm *PluginManager) mergeNodeCapacityInfo(m1 map[string]*NodeCapacityInfo, m2 map[string]*NodeCapacityInfo) map[string]*NodeCapacityInfo {
 	if len(m1) == 0 {
 		return m2
 	}
@@ -137,7 +137,7 @@ func (pm *PluginManager) GetNodesDeployCapacity(ctx context.Context, nodeNames [
 
 	// get nodeNames with all resource capacities > 0
 	for _, infoMap := range respMap {
-		res = pm.mergeNodeResourceInfo(res, infoMap.Nodes)
+		res = pm.mergeNodeCapacityInfo(res, infoMap.Nodes)
 	}
 
 	total := 0
@@ -220,9 +220,9 @@ func (pm *PluginManager) GetDeployArgs(ctx context.Context, nodeName string, dep
 			}
 			return nil
 		},
-		// commit: update nodeName resources
+		// commit: update node resources
 		func(ctx context.Context) error {
-			if err := pm.SetNodeResourceUsage(ctx, nodeName, nil, nil, resResourceArgs, true, Incr); err != nil {
+			if _, _, err := pm.SetNodeResourceUsage(ctx, nodeName, nil, nil, resResourceArgs, true, Incr); err != nil {
 				log.Errorf(ctx, "[GetDeployArgs] failed to update nodeName resource, err: %v", err)
 				return err
 			}
@@ -270,7 +270,7 @@ func (pm *PluginManager) GetReallocArgs(ctx context.Context, nodeName string, or
 		},
 		// commit: update node resource
 		func(ctx context.Context) error {
-			if err := pm.SetNodeResourceUsage(ctx, nodeName, nil, nil, []map[string]types.WorkloadResourceArgs{resDeltaResourceArgs}, true, Incr); err != nil {
+			if _, _, err := pm.SetNodeResourceUsage(ctx, nodeName, nil, nil, []map[string]types.WorkloadResourceArgs{resDeltaResourceArgs}, true, Incr); err != nil {
 				log.Errorf(ctx, "[GetDeployArgs] failed to update nodeName resource, err: %v", err)
 				return err
 			}
@@ -318,12 +318,13 @@ func (pm *PluginManager) GetNodeResourceInfo(ctx context.Context, nodeName strin
 }
 
 // SetNodeResourceUsage with rollback
-func (pm *PluginManager) SetNodeResourceUsage(ctx context.Context, nodeName string, nodeResourceOpts types.NodeResourceOpts, nodeResourceArgs map[string]types.NodeResourceArgs, workloadResourceArgs []map[string]types.WorkloadResourceArgs, delta bool, incr bool) error {
+func (pm *PluginManager) SetNodeResourceUsage(ctx context.Context, nodeName string, nodeResourceOpts types.NodeResourceOpts, nodeResourceArgs map[string]types.NodeResourceArgs, workloadResourceArgs []map[string]types.WorkloadResourceArgs, delta bool, incr bool) (map[string]types.NodeResourceArgs, map[string]types.NodeResourceArgs, error) {
 	workloadResourceArgsMap := map[string][]types.WorkloadResourceArgs{}
 	rollbackPlugins := []Plugin{}
 	beforeMap := map[string]types.NodeResourceArgs{}
+	afterMap := map[string]types.NodeResourceArgs{}
 
-	return utils.Pcr(ctx,
+	return beforeMap, afterMap, utils.Pcr(ctx,
 		// prepare: convert []map[plugin]resourceArgs to map[plugin][]resourceArgs
 		// [{"cpu-plugin": {"cpu": 1}}, {"cpu-plugin": {"cpu": 1}}] -> {"cpu-plugin": [{"cpu": 1}, {"cpu": 1}]}
 		func(ctx context.Context) error {
@@ -354,6 +355,7 @@ func (pm *PluginManager) SetNodeResourceUsage(ctx context.Context, nodeName stri
 				for plugin, resp := range respMap {
 					rollbackPlugins = append(rollbackPlugins, plugin)
 					beforeMap[plugin.Name()] = resp.Before
+					afterMap[plugin.Name()] = resp.After
 				}
 
 				log.Errorf(ctx, "[UpdateNodeResourceUsage] failed to set node resource for node %v", nodeName)
@@ -382,11 +384,12 @@ func (pm *PluginManager) SetNodeResourceUsage(ctx context.Context, nodeName stri
 
 // SetNodeResourceCapacity updates node resource capacity
 // receives resource options instead of resource args
-func (pm *PluginManager) SetNodeResourceCapacity(ctx context.Context, nodeName string, nodeResourceOpts types.NodeResourceOpts, nodeResourceArgs map[string]types.NodeResourceArgs, delta bool, incr bool) error {
+func (pm *PluginManager) SetNodeResourceCapacity(ctx context.Context, nodeName string, nodeResourceOpts types.NodeResourceOpts, nodeResourceArgs map[string]types.NodeResourceArgs, delta bool, incr bool) (map[string]types.NodeResourceArgs, map[string]types.NodeResourceArgs, error) {
 	rollbackPlugins := []Plugin{}
 	beforeMap := map[string]types.NodeResourceArgs{}
+	afterMap := map[string]types.NodeResourceArgs{}
 
-	return utils.Pcr(ctx,
+	return beforeMap, afterMap, utils.Pcr(ctx,
 		func(ctx context.Context) error {
 			if nodeResourceArgs == nil {
 				nodeResourceArgs = map[string]types.NodeResourceArgs{}
@@ -407,6 +410,7 @@ func (pm *PluginManager) SetNodeResourceCapacity(ctx context.Context, nodeName s
 				for plugin, resp := range respMap {
 					rollbackPlugins = append(rollbackPlugins, plugin)
 					beforeMap[plugin.Name()] = resp.Before
+					afterMap[plugin.Name()] = resp.After
 				}
 
 				log.Errorf(ctx, "[SetNodeResourceCapacity] failed to set node resource for node %v", nodeName)

@@ -1,12 +1,9 @@
-package types
+package resources
 
 import (
 	"fmt"
 	"strconv"
 )
-
-// ResourceMeta for messages and workload to store
-type ResourceMeta map[string]WorkloadResourceArgs
 
 // RawParams .
 type RawParams map[string]interface{}
@@ -72,18 +69,3 @@ func (r RawParams) OneOfStringSlice(keys ...string) []string {
 func (r RawParams) Bool(key string) bool {
 	return r.IsSet(key)
 }
-
-// NodeResourceOpts .
-type NodeResourceOpts RawParams
-
-// NodeResourceArgs .
-type NodeResourceArgs RawParams
-
-// WorkloadResourceOpts .
-type WorkloadResourceOpts RawParams
-
-// WorkloadResourceArgs .
-type WorkloadResourceArgs RawParams
-
-// EngineArgs .
-type EngineArgs RawParams

@@ -57,7 +57,7 @@ func (c *Calcium) doReallocOnNode(ctx context.Context, node *types.Node, workloa
 			if failureByCond {
 				return nil
 			}
-			err := c.resource.SetNodeResourceUsage(ctx, workload.Nodename, nil, nil, []map[string]types.WorkloadResourceArgs{resourceArgs}, true, resources.Decr)
+			_, _, err := c.resource.SetNodeResourceUsage(ctx, workload.Nodename, nil, nil, []map[string]types.WorkloadResourceArgs{resourceArgs}, true, resources.Decr)
 			if err != nil {
 				return errors.WithStack(err)
 			}

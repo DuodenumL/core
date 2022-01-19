@@ -212,13 +212,18 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 			n.Labels = opts.Labels
 		}
 
+		var originNodeResourceCapacity map[string]types.NodeResourceArgs
+		var err error
+
 		return logger.Err(ctx, utils.Txn(ctx,
 			// if: update node resource capacity success
 			func(ctx context.Context) error {
 				if len(opts.ResourceOpts) == 0 {
 					return nil
 				}
-				return errors.WithStack(c.resource.SetNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, nil, true, resources.Incr))
+
+				originNodeResourceCapacity, _, err = c.resource.SetNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, nil, opts.Delta, resources.Incr)
+				return errors.WithStack(err)
 			},
 			// then: update node metadata
 			func(ctx context.Context) error {
@@ -232,7 +237,8 @@ func (c *Calcium) SetNode(ctx context.Context, opts *types.SetNodeOptions) (*typ
 				if len(opts.ResourceOpts) == 0 {
 					return nil
 				}
-				return errors.WithStack(c.resource.SetNodeResourceCapacity(ctx, n.Name, opts.ResourceOpts, nil, true, resources.Decr))
+				_, _, err = c.resource.SetNodeResourceCapacity(ctx, n.Name, nil, originNodeResourceCapacity, false, resources.Decr)
+				return errors.WithStack(err)
 			},
 			c.config.GlobalTimeout,
 		))

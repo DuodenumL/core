@@ -112,7 +112,8 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 						for _, idx := range rollbackIndices {
 							resourceArgsToRollback = append(resourceArgsToRollback, resourceArgsMap[nodename][idx])
 						}
-						return c.resource.SetNodeResourceUsage(ctx, nodename, nil, nil, resourceArgsToRollback, true, resources.Decr)
+						_, _, err := c.resource.SetNodeResourceUsage(ctx, nodename, nil, nil, resourceArgsToRollback, true, resources.Decr)
+						return err
 					}); e != nil {
 						err = logger.Err(ctx, e)
 					}

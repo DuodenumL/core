@@ -215,6 +215,7 @@ type SetNodeOptions struct {
 	Endpoint      string
 	WorkloadsDown bool
 	ResourceOpts  NodeResourceOpts
+	Delta         bool
 	Labels        map[string]string
 	BypassOpt     TriOptions
 	Ca            string

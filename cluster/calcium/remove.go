@@ -46,7 +46,8 @@ func (c *Calcium) RemoveWorkload(ctx context.Context, ids []string, force bool, 
 										for plugin, args := range workload.ResourceArgs {
 											resourceArgs[plugin] = args
 										}
-										return errors.WithStack(c.resource.SetNodeResourceUsage(ctx, node.Name, nil, nil, []map[string]types.WorkloadResourceArgs{resourceArgs}, true, resources.Decr))
+										_, _, err = c.resource.SetNodeResourceUsage(ctx, node.Name, nil, nil, []map[string]types.WorkloadResourceArgs{resourceArgs}, true, resources.Decr)
+										return errors.WithStack(err)
 									},
 									// then
 									func(ctx context.Context) (err error) {
@@ -64,7 +65,8 @@ func (c *Calcium) RemoveWorkload(ctx context.Context, ids []string, force bool, 
 										for plugin, args := range workload.ResourceArgs {
 											resourceArgs[plugin] = args
 										}
-										return errors.WithStack(c.resource.SetNodeResourceUsage(ctx, node.Name, nil, nil, []map[string]types.WorkloadResourceArgs{resourceArgs}, true, resources.Incr))
+										_, _, err = c.resource.SetNodeResourceUsage(ctx, node.Name, nil, nil, []map[string]types.WorkloadResourceArgs{resourceArgs}, true, resources.Incr)
+										return errors.WithStack(err)
 									},
 									c.config.GlobalTimeout,
 								)

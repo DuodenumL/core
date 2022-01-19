@@ -1,6 +1,6 @@
 module github.com/projecteru2/core
 
-go 1.17
+go 1.18
 
 require (
 	github.com/CMGS/statsd v0.0.0-20160223095033-48c421b3c1ab
