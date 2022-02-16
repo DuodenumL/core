@@ -30,18 +30,6 @@ func (r *Rediaron) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*ty
 		return nil, err
 	}
 
-	// 尝试加载的客户端
-	// 会自动判断是否是支持的 url
-	client, err := enginefactory.GetEngine(ctx, r.config, opts.Nodename, opts.Endpoint, opts.Ca, opts.Cert, opts.Key)
-	if err != nil {
-		return nil, err
-	}
-
-	// 判断这货是不是活着的
-	if _, err = client.Info(ctx); err != nil {
-		return nil, err
-	}
-	// TODO 更新默认值
 	return r.doAddNode(ctx, opts.Nodename, opts.Endpoint, opts.Podname, opts.Ca, opts.Cert, opts.Key, opts.Labels)
 }
 

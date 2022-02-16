@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
 	coretypes "github.com/projecteru2/core/types"
 )
@@ -240,7 +241,7 @@ func (bp *BinaryPlugin) SetNodeResourceCapacity(ctx context.Context, nodeName st
 }
 
 // AddNode .
-func (bp *BinaryPlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts) (resp *AddNodeResponse, err error) {
+func (bp *BinaryPlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, nodeInfo *enginetypes.Info) (resp *AddNodeResponse, err error) {
 	req := AddNodeRequest{
 		NodeName:     nodeName,
 		ResourceOpts: resourceOpts,

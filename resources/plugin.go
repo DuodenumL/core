@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 
+	enginetypes "github.com/projecteru2/core/engine/types"
 	coretypes "github.com/projecteru2/core/types"
 )
 
@@ -67,7 +68,7 @@ type Plugin interface {
 
 	// AddNode adds a node with requested resource, returns resource capacity and (empty) resource usage
 	// should return error if the node already exists
-	AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts) (*AddNodeResponse, error)
+	AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, nodeInfo *enginetypes.Info) (*AddNodeResponse, error)
 
 	// RemoveNode removes node
 	RemoveNode(ctx context.Context, nodeName string) (*RemoveNodeResponse, error)

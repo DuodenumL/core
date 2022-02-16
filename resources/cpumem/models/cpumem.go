@@ -2,9 +2,11 @@ package models
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 
+	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/resources/cpumem/types"
 	"github.com/projecteru2/core/store/etcdv3/meta"
@@ -242,10 +244,24 @@ func (c *CPUMemPlugin) SetNodeResourceInfo(ctx context.Context, nodeName string,
 }
 
 // AddNode .
-func (c *CPUMemPlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts) (*resources.AddNodeResponse, error) {
+func (c *CPUMemPlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, nodeInfo *enginetypes.Info) (*resources.AddNodeResponse, error) {
 	nodeResourceOpts := &types.NodeResourceOpts{}
 	if err := nodeResourceOpts.ParseFromRawParams(resources.RawParams(resourceOpts)); err != nil {
 		return nil, err
+	}
+
+	// set default value
+	if nodeInfo != nil {
+		if len(nodeResourceOpts.CPUMap) == 0 {
+			nodeResourceOpts.CPUMap = types.CPUMap{}
+			for i := 0; i < nodeInfo.NCPU; i++ {
+				nodeResourceOpts.CPUMap[strconv.Itoa(i)] = int64(c.c.config.Scheduler.ShareBase)
+			}
+		}
+
+		if nodeResourceOpts.Memory == 0 {
+			nodeResourceOpts.Memory = nodeInfo.MemTotal * 8 / 10 // use 80% of real memory
+		}
 	}
 
 	nodeResourceInfo, err := c.c.AddNode(ctx, nodeName, nodeResourceOpts)

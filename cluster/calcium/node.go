@@ -6,6 +6,7 @@ import (
 
 	"github.com/sanity-io/litter"
 
+	enginefactory "github.com/projecteru2/core/engine/factory"
 	"github.com/projecteru2/core/resources"
 
 	"github.com/projecteru2/core/log"
@@ -27,11 +28,22 @@ func (c *Calcium) AddNode(ctx context.Context, opts *types.AddNodeOptions) (*typ
 	var node *types.Node
 	var err error
 
+	// check if the node is alive
+	client, err := enginefactory.GetEngine(ctx, c.config, opts.Nodename, opts.Endpoint, opts.Ca, opts.Cert, opts.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	// get node info
+	nodeInfo, err := client.Info(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	return node, logger.Err(ctx, utils.Txn(
 		ctx,
 		// if: add node resource with resource plugins
 		func(ctx context.Context) error {
-			resourceCapacity, resourceUsage, err = c.resource.AddNode(ctx, opts.Nodename, opts.ResourceOpts)
+			resourceCapacity, resourceUsage, err = c.resource.AddNode(ctx, opts.Nodename, opts.ResourceOpts, nodeInfo)
 			return errors.WithStack(err)
 		},
 		// then: add node meta in store

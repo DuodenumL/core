@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
@@ -473,7 +474,7 @@ func (pm *PluginManager) GetRemapArgs(ctx context.Context, nodeName string, work
 }
 
 // AddNode .
-func (pm *PluginManager) AddNode(ctx context.Context, nodeName string, resourceOpts types.NodeResourceOpts) (map[string]types.NodeResourceArgs, map[string]types.NodeResourceArgs, error) {
+func (pm *PluginManager) AddNode(ctx context.Context, nodeName string, resourceOpts types.NodeResourceOpts, nodeInfo *enginetypes.Info) (map[string]types.NodeResourceArgs, map[string]types.NodeResourceArgs, error) {
 	resResourceCapacity := map[string]types.NodeResourceArgs{}
 	resResourceUsage := map[string]types.NodeResourceArgs{}
 	rollbackPlugins := []Plugin{}
@@ -486,7 +487,7 @@ func (pm *PluginManager) AddNode(ctx context.Context, nodeName string, resourceO
 		// commit: call plugins to add the node
 		func(ctx context.Context) error {
 			respMap, err := callPlugins(ctx, pm.plugins, func(plugin Plugin) (*AddNodeResponse, error) {
-				resp, err := plugin.AddNode(ctx, nodeName, resourceOpts)
+				resp, err := plugin.AddNode(ctx, nodeName, resourceOpts, nodeInfo)
 				if err != nil {
 					log.Errorf(ctx, "[AddNode] node %v plugin %v failed to add node, req: %v, err: %v", nodeName, plugin.Name(), resourceOpts, err)
 				}
