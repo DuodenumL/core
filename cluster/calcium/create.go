@@ -83,7 +83,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 					}
 
 					for node, deploy := range deployMap {
-						if engineArgsMap[node], resourceArgsMap[node], err = c.resource.GetDeployArgs(ctx, node, deploy, opts.ResourceOpts); err != nil {
+						if engineArgsMap[node], resourceArgsMap[node], err = c.resource.Alloc(ctx, node, deploy, opts.ResourceOpts); err != nil {
 							return errors.WithStack(err)
 						}
 						if err = c.store.CreateProcessing(ctx, opts.GetProcessing(node), deploy); err != nil {

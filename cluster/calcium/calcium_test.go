@@ -1,7 +1,6 @@
 package calcium
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -43,7 +42,7 @@ func NewTestCluster() *Calcium {
 	}
 	c.store = &storemocks.Store{}
 	c.source = &sourcemocks.Source{}
-	c.resource = resources.NewPluginManager(context.Background(), c.config)
+	c.resource = resources.NewPluginManager(c.config)
 	c.resource.AddPlugins(mocks.NewMockCpuPlugin(), mocks.NewMockMemPlugin())
 	c.wal = &WAL{WAL: &walmocks.WAL{}}
 

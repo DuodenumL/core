@@ -17,7 +17,7 @@ func (c *CPUMem) GetReallocArgs(ctx context.Context, node string, originResource
 
 	resourceInfo, err := c.doGetNodeResourceInfo(ctx, node)
 	if err != nil {
-		logrus.Errorf("[GetReallocArgs] failed to get resource info of node %v, err: %v", node, err)
+		logrus.Errorf("[Realloc] failed to get resource info of node %v, err: %v", node, err)
 		return nil, nil, nil, err
 	}
 
@@ -47,9 +47,9 @@ func (c *CPUMem) GetReallocArgs(ctx context.Context, node string, originResource
 	var numaMemory types.NUMAMemory
 
 	if resourceOpts.CPUBind {
-		_, cpuPlanMap, total, err := schedule.ReselectCPUNodes(ctx, resourceInfo, node, originResourceArgs.CPUMap, resourceOpts.CPURequest, resourceOpts.MemRequest, c.config.Scheduler.MaxShare, c.config.Scheduler.ShareBase)
+		cpuPlanMap, total, err := schedule.ReselectCPUNodes(ctx, resourceInfo, node, originResourceArgs.CPUMap, resourceOpts.CPURequest, resourceOpts.MemRequest, c.config.Scheduler.MaxShare, c.config.Scheduler.ShareBase)
 		if err != nil {
-			logrus.Errorf("[GetReallocArgs] failed to reselect cpu nodes, err: %v", err)
+			logrus.Errorf("[Realloc] failed to reselect cpu nodes, err: %v", err)
 			return nil, nil, nil, err
 		}
 		if total <= 0 {

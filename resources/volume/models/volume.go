@@ -2,57 +2,56 @@ package models
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/sirupsen/logrus"
 
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/resources/cpumem/types"
+	"github.com/projecteru2/core/resources/volume/types"
 	"github.com/projecteru2/core/store/etcdv3/meta"
 	coretypes "github.com/projecteru2/core/types"
 )
 
-// CPUMem manages cpu and memory
-type CPUMem struct {
+// Volume .
+type Volume struct {
 	config coretypes.Config
 	store  meta.KV
 }
 
-func newCPUMem(config coretypes.Config) (*CPUMem, error) {
-	c := &CPUMem{config: config}
+// NewVolume .
+func NewVolume(config coretypes.Config) (*Volume, error) {
+	v := &Volume{config: config}
 	var err error
 	if len(config.Etcd.Machines) > 0 {
-		c.store, err = meta.NewETCD(config.Etcd, nil)
+		v.store, err = meta.NewETCD(config.Etcd, nil)
 		if err != nil {
-			logrus.Errorf("[NewCPUMem] failed to create etcd client, err: %v", err)
+			logrus.Errorf("[NewVolume] failed to create etcd client, err: %v", err)
 			return nil, err
 		}
 	}
-	return c, nil
+	return v, nil
 }
 
-// CPUMemPlugin wrapper of CPUMem
-type CPUMemPlugin struct {
-	c *CPUMem
+type VolumePlugin struct {
+	v *Volume
 }
 
-// NewCPUMemPlugin creates a new CPUMemPlugin
-func NewCPUMemPlugin(config coretypes.Config) (*CPUMemPlugin, error) {
-	c, err := newCPUMem(config)
+// NewVolumePlugin .
+func NewVolumePlugin(config coretypes.Config) (*VolumePlugin, error) {
+	v, err := NewVolume(config)
 	if err != nil {
 		return nil, err
 	}
-	return &CPUMemPlugin{c: c}, nil
+	return &VolumePlugin{v: v}, nil
 }
 
 // GetDeployArgs .
-func (c *CPUMemPlugin) GetDeployArgs(ctx context.Context, nodeName string, deployCount int, resourceOpts coretypes.WorkloadResourceOpts) (*resources.GetDeployArgsResponse, error) {
+func (v *VolumePlugin) GetDeployArgs(ctx context.Context, nodeName string, deployCount int, resourceOpts coretypes.WorkloadResourceOpts) (*resources.GetDeployArgsResponse, error) {
 	workloadResourceOpts := &types.WorkloadResourceOpts{}
 	if err := workloadResourceOpts.ParseFromRawParams(coretypes.RawParams(resourceOpts)); err != nil {
 		return nil, err
 	}
-	engineArgs, resourceArgs, err := c.c.GetDeployArgs(ctx, nodeName, deployCount, workloadResourceOpts)
+	engineArgs, resourceArgs, err := v.v.GetDeployArgs(ctx, nodeName, deployCount, workloadResourceOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +65,7 @@ func (c *CPUMemPlugin) GetDeployArgs(ctx context.Context, nodeName string, deplo
 }
 
 // GetReallocArgs .
-func (c *CPUMemPlugin) GetReallocArgs(ctx context.Context, nodeName string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (*resources.GetReallocArgsResponse, error) {
+func (v *VolumePlugin) GetReallocArgs(ctx context.Context, nodeName string, originResourceArgs coretypes.WorkloadResourceArgs, resourceOpts coretypes.WorkloadResourceOpts) (*resources.GetReallocArgsResponse, error) {
 	workloadResourceOpts := &types.WorkloadResourceOpts{}
 	if err := workloadResourceOpts.ParseFromRawParams(coretypes.RawParams(resourceOpts)); err != nil {
 		return nil, err
@@ -76,7 +75,7 @@ func (c *CPUMemPlugin) GetReallocArgs(ctx context.Context, nodeName string, orig
 		return nil, err
 	}
 
-	engineArgs, delta, resourceArgs, err := c.c.GetReallocArgs(ctx, nodeName, originWorkloadResourceArgs, workloadResourceOpts)
+	engineArgs, delta, resourceArgs, err := v.v.GetReallocArgs(ctx, nodeName, originWorkloadResourceArgs, workloadResourceOpts)
 
 	resp := &resources.GetReallocArgsResponse{}
 	err = resources.ToResp(map[string]interface{}{
@@ -88,13 +87,13 @@ func (c *CPUMemPlugin) GetReallocArgs(ctx context.Context, nodeName string, orig
 }
 
 // GetRemapArgs .
-func (c *CPUMemPlugin) GetRemapArgs(ctx context.Context, nodeName string, workloadMap map[string]*coretypes.Workload) (*resources.GetRemapArgsResponse, error) {
-	workloadResourceArgsMap, err := c.workloadMapToWorkloadResourceArgsMap(workloadMap)
+func (v *VolumePlugin) GetRemapArgs(ctx context.Context, nodeName string, workloadMap map[string]*coretypes.Workload) (*resources.GetRemapArgsResponse, error) {
+	workloadResourceArgsMap, err := v.workloadMapToWorkloadResourceArgsMap(workloadMap)
 	if err != nil {
 		return nil, err
 	}
 
-	engineArgs, err := c.c.GetRemapArgs(ctx, nodeName, workloadResourceArgsMap)
+	engineArgs, err := v.v.GetRemapArgs(ctx, nodeName, workloadResourceArgsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -107,13 +106,13 @@ func (c *CPUMemPlugin) GetRemapArgs(ctx context.Context, nodeName string, worklo
 }
 
 // GetNodesDeployCapacity .
-func (c *CPUMemPlugin) GetNodesDeployCapacity(ctx context.Context, nodeNames []string, resourceOpts coretypes.WorkloadResourceOpts) (*resources.GetNodesDeployCapacityResponse, error) {
+func (v *VolumePlugin) GetNodesDeployCapacity(ctx context.Context, nodeNames []string, resourceOpts coretypes.WorkloadResourceOpts) (*resources.GetNodesDeployCapacityResponse, error) {
 	workloadResourceOpts := &types.WorkloadResourceOpts{}
 	if err := workloadResourceOpts.ParseFromRawParams(coretypes.RawParams(resourceOpts)); err != nil {
 		return nil, err
 	}
 
-	nodesDeployCapacity, total, err := c.c.GetNodesDeployCapacity(ctx, nodeNames, workloadResourceOpts)
+	nodesDeployCapacity, total, err := v.v.GetNodesDeployCapacity(ctx, nodeNames, workloadResourceOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +126,8 @@ func (c *CPUMemPlugin) GetNodesDeployCapacity(ctx context.Context, nodeNames []s
 }
 
 // GetMostIdleNode .
-func (c *CPUMemPlugin) GetMostIdleNode(ctx context.Context, nodeNames []string) (*resources.GetMostIdleNodeResponse, error) {
-	nodeName, priority, err := c.c.GetMostIdleNode(ctx, nodeNames)
+func (v *VolumePlugin) GetMostIdleNode(ctx context.Context, nodeNames []string) (*resources.GetMostIdleNodeResponse, error) {
+	nodeName, priority, err := v.v.GetMostIdleNode(ctx, nodeNames)
 	if err != nil {
 		return nil, err
 	}
@@ -142,17 +141,17 @@ func (c *CPUMemPlugin) GetMostIdleNode(ctx context.Context, nodeNames []string) 
 }
 
 // GetNodeResourceInfo .
-func (c *CPUMemPlugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (*resources.GetNodeResourceInfoResponse, error) {
-	return c.getNodeResourceInfo(ctx, nodeName, workloads, false)
+func (v *VolumePlugin) GetNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (*resources.GetNodeResourceInfoResponse, error) {
+	return v.getNodeResourceInfo(ctx, nodeName, workloads, false)
 }
 
 // FixNodeResource .
-func (c *CPUMemPlugin) FixNodeResource(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (*resources.GetNodeResourceInfoResponse, error) {
-	return c.getNodeResourceInfo(ctx, nodeName, workloads, true)
+func (v *VolumePlugin) FixNodeResource(ctx context.Context, nodeName string, workloads []*coretypes.Workload) (*resources.GetNodeResourceInfoResponse, error) {
+	return v.getNodeResourceInfo(ctx, nodeName, workloads, true)
 }
 
 // SetNodeResourceUsage .
-func (c *CPUMemPlugin) SetNodeResourceUsage(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, resourceArgs coretypes.NodeResourceArgs, workloadResourceArgs []coretypes.WorkloadResourceArgs, delta bool, incr bool) (*resources.SetNodeResourceUsageResponse, error) {
+func (v *VolumePlugin) SetNodeResourceUsage(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, resourceArgs coretypes.NodeResourceArgs, workloadResourceArgs []coretypes.WorkloadResourceArgs, delta bool, incr bool) (*resources.SetNodeResourceUsageResponse, error) {
 	var nodeResourceOpts *types.NodeResourceOpts
 	var nodeResourceArgs *types.NodeResourceArgs
 	var workloadResourceArgsList []*types.WorkloadResourceArgs
@@ -181,7 +180,7 @@ func (c *CPUMemPlugin) SetNodeResourceUsage(ctx context.Context, nodeName string
 		}
 	}
 
-	before, after, err := c.c.SetNodeResourceUsage(ctx, nodeName, nodeResourceOpts, nodeResourceArgs, workloadResourceArgsList, delta, incr)
+	before, after, err := v.v.SetNodeResourceUsage(ctx, nodeName, nodeResourceOpts, nodeResourceArgs, workloadResourceArgsList, delta, incr)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +194,7 @@ func (c *CPUMemPlugin) SetNodeResourceUsage(ctx context.Context, nodeName string
 }
 
 // SetNodeResourceCapacity .
-func (c *CPUMemPlugin) SetNodeResourceCapacity(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, resourceArgs coretypes.NodeResourceArgs, delta bool, incr bool) (*resources.SetNodeResourceCapacityResponse, error) {
+func (v *VolumePlugin) SetNodeResourceCapacity(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, resourceArgs coretypes.NodeResourceArgs, delta bool, incr bool) (*resources.SetNodeResourceCapacityResponse, error) {
 	var nodeResourceOpts *types.NodeResourceOpts
 	var nodeResourceArgs *types.NodeResourceArgs
 
@@ -212,7 +211,7 @@ func (c *CPUMemPlugin) SetNodeResourceCapacity(ctx context.Context, nodeName str
 		}
 	}
 
-	before, after, err := c.c.SetNodeResourceCapacity(ctx, nodeName, nodeResourceOpts, nodeResourceArgs, delta, incr)
+	before, after, err := v.v.SetNodeResourceCapacity(ctx, nodeName, nodeResourceOpts, nodeResourceArgs, delta, incr)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +225,7 @@ func (c *CPUMemPlugin) SetNodeResourceCapacity(ctx context.Context, nodeName str
 }
 
 // SetNodeResourceInfo .
-func (c *CPUMemPlugin) SetNodeResourceInfo(ctx context.Context, nodeName string, resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs) (*resources.SetNodeResourceInfoResponse, error) {
+func (v *VolumePlugin) SetNodeResourceInfo(ctx context.Context, nodeName string, resourceCapacity coretypes.NodeResourceArgs, resourceUsage coretypes.NodeResourceArgs) (*resources.SetNodeResourceInfoResponse, error) {
 	capacity := &types.NodeResourceArgs{}
 	if err := capacity.ParseFromRawParams(coretypes.RawParams(resourceCapacity)); err != nil {
 		return nil, err
@@ -237,14 +236,14 @@ func (c *CPUMemPlugin) SetNodeResourceInfo(ctx context.Context, nodeName string,
 		return nil, err
 	}
 
-	if err := c.c.SetNodeResourceInfo(ctx, nodeName, capacity, usage); err != nil {
+	if err := v.v.SetNodeResourceInfo(ctx, nodeName, capacity, usage); err != nil {
 		return nil, err
 	}
 	return &resources.SetNodeResourceInfoResponse{}, nil
 }
 
 // AddNode .
-func (c *CPUMemPlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, nodeInfo *enginetypes.Info) (*resources.AddNodeResponse, error) {
+func (v *VolumePlugin) AddNode(ctx context.Context, nodeName string, resourceOpts coretypes.NodeResourceOpts, nodeInfo *enginetypes.Info) (*resources.AddNodeResponse, error) {
 	nodeResourceOpts := &types.NodeResourceOpts{}
 	if err := nodeResourceOpts.ParseFromRawParams(coretypes.RawParams(resourceOpts)); err != nil {
 		return nil, err
@@ -252,19 +251,12 @@ func (c *CPUMemPlugin) AddNode(ctx context.Context, nodeName string, resourceOpt
 
 	// set default value
 	if nodeInfo != nil {
-		if len(nodeResourceOpts.CPUMap) == 0 {
-			nodeResourceOpts.CPUMap = types.CPUMap{}
-			for i := 0; i < nodeInfo.NCPU; i++ {
-				nodeResourceOpts.CPUMap[strconv.Itoa(i)] = int64(c.c.config.Scheduler.ShareBase)
-			}
-		}
-
-		if nodeResourceOpts.Memory == 0 {
-			nodeResourceOpts.Memory = nodeInfo.MemTotal * 8 / 10 // use 80% of real memory
+		if nodeResourceOpts.Storage == 0 {
+			nodeResourceOpts.Storage = nodeInfo.StorageTotal * 8 / 10
 		}
 	}
 
-	nodeResourceInfo, err := c.c.AddNode(ctx, nodeName, nodeResourceOpts)
+	nodeResourceInfo, err := v.v.AddNode(ctx, nodeName, nodeResourceOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -278,19 +270,19 @@ func (c *CPUMemPlugin) AddNode(ctx context.Context, nodeName string, resourceOpt
 }
 
 // RemoveNode .
-func (c *CPUMemPlugin) RemoveNode(ctx context.Context, nodeName string) (*resources.RemoveNodeResponse, error) {
-	if err := c.c.RemoveNode(ctx, nodeName); err != nil {
+func (v *VolumePlugin) RemoveNode(ctx context.Context, nodeName string) (*resources.RemoveNodeResponse, error) {
+	if err := v.v.RemoveNode(ctx, nodeName); err != nil {
 		return nil, err
 	}
 	return &resources.RemoveNodeResponse{}, nil
 }
 
 // Name .
-func (c *CPUMemPlugin) Name() string {
-	return "cpumem"
+func (v *VolumePlugin) Name() string {
+	return "volume"
 }
 
-func (c *CPUMemPlugin) workloadMapToWorkloadResourceArgsMap(workloadMap map[string]*coretypes.Workload) (*types.WorkloadResourceArgsMap, error) {
+func (v *VolumePlugin) workloadMapToWorkloadResourceArgsMap(workloadMap map[string]*coretypes.Workload) (*types.WorkloadResourceArgsMap, error) {
 	rawParamsMap := map[string]coretypes.RawParams{}
 	for workloadID, workload := range workloadMap {
 		rawParamsMap[workloadID] = coretypes.RawParams{}
@@ -307,22 +299,22 @@ func (c *CPUMemPlugin) workloadMapToWorkloadResourceArgsMap(workloadMap map[stri
 	return workloadResourceArgsMap, nil
 }
 
-func (c *CPUMemPlugin) workloadListToWorkloadResourceArgsMap(workloads []*coretypes.Workload) (*types.WorkloadResourceArgsMap, error) {
+func (v *VolumePlugin) workloadListToWorkloadResourceArgsMap(workloads []*coretypes.Workload) (*types.WorkloadResourceArgsMap, error) {
 	workloadMap := map[string]*coretypes.Workload{}
 	for _, workload := range workloads {
 		workloadMap[workload.ID] = workload
 	}
 
-	return c.workloadMapToWorkloadResourceArgsMap(workloadMap)
+	return v.workloadMapToWorkloadResourceArgsMap(workloadMap)
 }
 
-func (c *CPUMemPlugin) getNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (*resources.GetNodeResourceInfoResponse, error) {
-	workloadResourceArgsMap, err := c.workloadListToWorkloadResourceArgsMap(workloads)
+func (v *VolumePlugin) getNodeResourceInfo(ctx context.Context, nodeName string, workloads []*coretypes.Workload, fix bool) (*resources.GetNodeResourceInfoResponse, error) {
+	workloadResourceArgsMap, err := v.workloadListToWorkloadResourceArgsMap(workloads)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeResourceInfo, diffs, err := c.c.GetNodeResourceInfo(ctx, nodeName, workloadResourceArgsMap, fix)
+	nodeResourceInfo, diffs, err := v.v.GetNodeResourceInfo(ctx, nodeName, workloadResourceArgsMap, fix)
 	if err != nil {
 		return nil, err
 	}

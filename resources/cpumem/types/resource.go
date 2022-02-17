@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/projecteru2/core/resources"
+	coretypes "github.com/projecteru2/core/types"
 	coreutils "github.com/projecteru2/core/utils"
 )
 
@@ -70,7 +71,7 @@ type WorkloadResourceArgs struct {
 }
 
 // ParseFromRawParams .
-func (r *WorkloadResourceArgs) ParseFromRawParams(rawParams resources.RawParams) error {
+func (r *WorkloadResourceArgs) ParseFromRawParams(rawParams coretypes.RawParams) error {
 	if body, err := json.Marshal(rawParams); err != nil {
 		return err
 	} else {
@@ -142,7 +143,7 @@ type NodeResourceArgs struct {
 }
 
 // ParseFromRawParams .
-func (r *NodeResourceArgs) ParseFromRawParams(rawParams resources.RawParams) error {
+func (r *NodeResourceArgs) ParseFromRawParams(rawParams coretypes.RawParams) error {
 	if body, err := json.Marshal(rawParams); err != nil {
 		return err
 	} else {
@@ -329,7 +330,7 @@ func (w *WorkloadResourceOpts) Validate() error {
 }
 
 // ParseFromRawParams .
-func (w *WorkloadResourceOpts) ParseFromRawParams(rawParams resources.RawParams) (err error) {
+func (w *WorkloadResourceOpts) ParseFromRawParams(rawParams coretypes.RawParams) (err error) {
 	w.KeepCPUBind = rawParams.Bool("keep-cpu-bind")
 	w.CPUBind = rawParams.Bool("cpu-bind")
 	w.CPURequest = rawParams.Float64("cpu-request")
@@ -365,10 +366,10 @@ type NodeResourceOpts struct {
 	NUMA       NUMA       `json:"numa"`
 	NUMAMemory NUMAMemory `json:"numa_memory"`
 
-	rawParams resources.RawParams
+	rawParams coretypes.RawParams
 }
 
-func (n *NodeResourceOpts) ParseFromRawParams(rawParams resources.RawParams) (err error) {
+func (n *NodeResourceOpts) ParseFromRawParams(rawParams coretypes.RawParams) (err error) {
 	n.rawParams = rawParams
 
 	if n.CPUMap == nil {
@@ -469,7 +470,7 @@ type EngineArgs struct {
 type WorkloadResourceArgsMap map[string]*WorkloadResourceArgs
 
 // ParseFromRawParamsMap .
-func (w *WorkloadResourceArgsMap) ParseFromRawParamsMap(rawParamsMap map[string]resources.RawParams) error {
+func (w *WorkloadResourceArgsMap) ParseFromRawParamsMap(rawParamsMap map[string]coretypes.RawParams) error {
 	if body, err := json.Marshal(rawParamsMap); err != nil {
 		return err
 	} else {

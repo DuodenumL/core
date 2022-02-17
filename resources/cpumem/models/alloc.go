@@ -12,13 +12,13 @@ import (
 // GetDeployArgs .
 func (c *CPUMem) GetDeployArgs(ctx context.Context, node string, deployCount int, opts *types.WorkloadResourceOpts) ([]*types.EngineArgs, []*types.WorkloadResourceArgs, error) {
 	if err := opts.Validate(); err != nil {
-		logrus.Errorf("[GetDeployArgs] invalid resource opts %+v, err: %v", opts, err)
+		logrus.Errorf("[Alloc] invalid resource opts %+v, err: %v", opts, err)
 		return nil, nil, err
 	}
 
 	resourceInfo, err := c.doGetNodeResourceInfo(ctx, node)
 	if err != nil {
-		logrus.Errorf("[GetDeployArgs] failed to get resource info of node %v, err: %v", node, err)
+		logrus.Errorf("[Alloc] failed to get resource info of node %v, err: %v", node, err)
 		return nil, nil, err
 	}
 

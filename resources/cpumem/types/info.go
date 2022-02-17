@@ -17,26 +17,6 @@ type ScheduleInfo struct {
 	Capacity int // 可以部署几个
 }
 
-// ScheduleInfoToNodeResourceInfo converts ScheduleInfo to NodeResourceInfo
-func ScheduleInfoToNodeResourceInfo(info ScheduleInfo) *NodeResourceInfo {
-	return &NodeResourceInfo{
-		Capacity: &NodeResourceArgs{
-			CPU:        float64(len(info.InitCPU)),
-			CPUMap:     info.InitCPU,
-			Memory:     info.InitMemCap,
-			NUMAMemory: info.InitNUMAMemory,
-			NUMA:       info.NUMA,
-		},
-		Usage: &NodeResourceArgs{
-			CPU:        float64(len(info.CPU)),
-			CPUMap:     info.CPU,
-			Memory:     info.MemCap,
-			NUMAMemory: info.NUMAMemory,
-			NUMA:       nil,
-		},
-	}
-}
-
 // NodeResourceInfoToScheduleInfo converts NodeResourceInfo to ScheduleInfo
 func NodeResourceInfoToScheduleInfo(info *NodeResourceInfo, nodeName string) ScheduleInfo {
 	scheduleInfo := ScheduleInfo{

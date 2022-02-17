@@ -10,7 +10,8 @@ import (
 	"github.com/projecteru2/core/discovery/helium"
 	"github.com/projecteru2/core/log"
 	"github.com/projecteru2/core/resources"
-	"github.com/projecteru2/core/resources/cpumem/models"
+	cpumemmodels "github.com/projecteru2/core/resources/cpumem/models"
+	volumemodels "github.com/projecteru2/core/resources/volume/models"
 	"github.com/projecteru2/core/source"
 	"github.com/projecteru2/core/source/github"
 	"github.com/projecteru2/core/source/gitlab"
@@ -74,18 +75,26 @@ func New(config types.Config, t *testing.T) (*Calcium, error) {
 	watcher := helium.New(config.GRPCConfig, store)
 
 	// set resource plugin manager
-	resource, err := resources.NewPluginManager(context.TODO(), config)
+	resource, err := resources.NewPluginManager(config)
 	if err != nil {
 		return nil, logger.Err(context.TODO(), errors.WithStack(err))
 	}
 
 	// load cpumem plugin
-	cpumem, err := models.NewCPUMemPlugin(config)
+	cpumem, err := cpumemmodels.NewCPUMemPlugin(config)
 	if err != nil {
 		log.Errorf(context.TODO(), "[NewPluginManager] new cpumem plugin error: %v", err)
 		return nil, err
 	}
 	resource.AddPlugins(cpumem)
+
+	// load volume plugin
+	volume, err := volumemodels.NewVolumePlugin(config)
+	if err != nil {
+		log.Errorf(context.TODO(), "[NewPluginManager] new volume plugin error: %v", err)
+		return nil, err
+	}
+	resource.AddPlugins(volume)
 
 	cal := &Calcium{store: store, config: config, source: scm, watcher: watcher, resource: resource}
 

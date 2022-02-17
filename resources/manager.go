@@ -20,7 +20,7 @@ type PluginManager struct {
 }
 
 // NewPluginManager creates a plugin manager
-func NewPluginManager(ctx context.Context, config types.Config) (*PluginManager, error) {
+func NewPluginManager(config types.Config) (*PluginManager, error) {
 	pm := &PluginManager{
 		config:  config,
 		plugins: []Plugin{},
@@ -147,8 +147,8 @@ func (pm *PluginManager) GetNodesDeployCapacity(ctx context.Context, nodeNames [
 	for _, info := range res {
 		info.Rate /= info.Weight
 		info.Usage /= info.Weight
-		if info.Capacity == math.MaxInt {
-			total = math.MaxInt
+		if info.Capacity == math.MaxInt64 {
+			total = math.MaxInt64
 		} else {
 			total += info.Capacity
 		}
@@ -181,8 +181,8 @@ func (pm *PluginManager) mergeEngineArgs(ctx context.Context, m1 types.EngineArg
 	return res, nil
 }
 
-// GetDeployArgs .
-func (pm *PluginManager) GetDeployArgs(ctx context.Context, nodeName string, deployCount int, resourceOpts types.WorkloadResourceOpts) ([]types.EngineArgs, []map[string]types.WorkloadResourceArgs, error) {
+// Alloc .
+func (pm *PluginManager) Alloc(ctx context.Context, nodeName string, deployCount int, resourceOpts types.WorkloadResourceOpts) ([]types.EngineArgs, []map[string]types.WorkloadResourceArgs, error) {
 	resEngineArgs := make([]types.EngineArgs, deployCount)
 	resResourceArgs := make([]map[string]types.WorkloadResourceArgs, deployCount)
 
@@ -198,7 +198,7 @@ func (pm *PluginManager) GetDeployArgs(ctx context.Context, nodeName string, dep
 			respMap, err := callPlugins(ctx, pm.plugins, func(plugin Plugin) (*GetDeployArgsResponse, error) {
 				resp, err := plugin.GetDeployArgs(ctx, nodeName, deployCount, resourceOpts)
 				if err != nil {
-					log.Errorf(ctx, "[GetDeployArgs] plugin %v failed to compute alloc args, request %v, node %v, deploy count %v, err %v", plugin.Name(), resourceOpts, nodeName, deployCount, err)
+					log.Errorf(ctx, "[Alloc] plugin %v failed to compute alloc args, request %v, node %v, deploy count %v, err %v", plugin.Name(), resourceOpts, nodeName, deployCount, err)
 				}
 				return resp, err
 			})
@@ -214,7 +214,7 @@ func (pm *PluginManager) GetDeployArgs(ctx context.Context, nodeName string, dep
 				for index, args := range resp.EngineArgs {
 					resEngineArgs[index], err = pm.mergeEngineArgs(ctx, resEngineArgs[index], args)
 					if err != nil {
-						log.Errorf(ctx, "[GetDeployArgs] invalid engine args")
+						log.Errorf(ctx, "[Alloc] invalid engine args")
 						return err
 					}
 				}
@@ -224,7 +224,7 @@ func (pm *PluginManager) GetDeployArgs(ctx context.Context, nodeName string, dep
 		// commit: update node resources
 		func(ctx context.Context) error {
 			if _, _, err := pm.SetNodeResourceUsage(ctx, nodeName, nil, nil, resResourceArgs, true, Incr); err != nil {
-				log.Errorf(ctx, "[GetDeployArgs] failed to update nodeName resource, err: %v", err)
+				log.Errorf(ctx, "[Alloc] failed to update nodeName resource, err: %v", err)
 				return err
 			}
 			return nil
@@ -237,8 +237,8 @@ func (pm *PluginManager) GetDeployArgs(ctx context.Context, nodeName string, dep
 	)
 }
 
-// GetReallocArgs reallocates resource for workloads, returns engine args and final resource args.
-func (pm *PluginManager) GetReallocArgs(ctx context.Context, nodeName string, originResourceArgs map[string]types.WorkloadResourceArgs, resourceOpts types.WorkloadResourceOpts) (types.EngineArgs, map[string]types.WorkloadResourceArgs, error) {
+// Realloc reallocates resource for workloads, returns engine args and final resource args.
+func (pm *PluginManager) Realloc(ctx context.Context, nodeName string, originResourceArgs map[string]types.WorkloadResourceArgs, resourceOpts types.WorkloadResourceOpts) (types.EngineArgs, map[string]types.WorkloadResourceArgs, error) {
 	resEngineArgs := types.EngineArgs{}
 	resDeltaResourceArgs := map[string]types.WorkloadResourceArgs{}
 	resFinalResourceArgs := map[string]types.WorkloadResourceArgs{}
@@ -249,19 +249,19 @@ func (pm *PluginManager) GetReallocArgs(ctx context.Context, nodeName string, or
 			respMap, err := callPlugins(ctx, pm.plugins, func(plugin Plugin) (*GetReallocArgsResponse, error) {
 				resp, err := plugin.GetReallocArgs(ctx, nodeName, originResourceArgs[plugin.Name()], resourceOpts)
 				if err != nil {
-					log.Errorf(ctx, "[GetReallocArgs] plugin %v failed to calculate realloc args, err: %v", plugin.Name(), err)
+					log.Errorf(ctx, "[Realloc] plugin %v failed to calculate realloc args, err: %v", plugin.Name(), err)
 				}
 				return resp, err
 			})
 
 			if err != nil {
-				log.Errorf(ctx, "[GetReallocArgs] realloc failed, origin: %+v, opts: %+v", originResourceArgs, resourceOpts)
+				log.Errorf(ctx, "[Realloc] realloc failed, origin: %+v, opts: %+v", originResourceArgs, resourceOpts)
 				return err
 			}
 
 			for plugin, resp := range respMap {
 				if resEngineArgs, err = pm.mergeEngineArgs(ctx, resEngineArgs, resp.EngineArgs); err != nil {
-					log.Errorf(ctx, "[GetReallocArgs] invalid engine args, err: %v", err)
+					log.Errorf(ctx, "[Realloc] invalid engine args, err: %v", err)
 					return err
 				}
 				resDeltaResourceArgs[plugin.Name()] = resp.Delta
@@ -272,7 +272,7 @@ func (pm *PluginManager) GetReallocArgs(ctx context.Context, nodeName string, or
 		// commit: update node resource
 		func(ctx context.Context) error {
 			if _, _, err := pm.SetNodeResourceUsage(ctx, nodeName, nil, nil, []map[string]types.WorkloadResourceArgs{resDeltaResourceArgs}, true, Incr); err != nil {
-				log.Errorf(ctx, "[GetDeployArgs] failed to update nodeName resource, err: %v", err)
+				log.Errorf(ctx, "[Alloc] failed to update nodeName resource, err: %v", err)
 				return err
 			}
 			return nil

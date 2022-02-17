@@ -40,7 +40,7 @@ func (c *Calcium) doReallocOnNode(ctx context.Context, node *types.Node, workloa
 		// if: update workload resource
 		func(ctx context.Context) error {
 			// note here will change the node resource meta (stored in resource plugin)
-			engineArgs, resourceArgs, err = c.resource.GetReallocArgs(ctx, workload.Nodename, workload.ResourceArgs, opts.ResourceOpts)
+			engineArgs, resourceArgs, err = c.resource.Realloc(ctx, workload.Nodename, workload.ResourceArgs, opts.ResourceOpts)
 			if err != nil {
 				return err
 			}

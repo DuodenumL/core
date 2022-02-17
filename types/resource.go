@@ -45,6 +45,9 @@ func (r RawParams) StringSlice(key string) []string {
 	if !r.IsSet(key) {
 		return nil
 	}
+	if s, ok := r[key].([]string); ok {
+		return s
+	}
 	res := []string{}
 	if s, ok := r[key].([]interface{}); ok {
 		for _, v := range s {

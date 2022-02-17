@@ -110,7 +110,7 @@ func SelectCPUNodes(ctx context.Context, scheduleInfos []types.ScheduleInfo, quo
 }
 
 // ReselectCPUNodes used for realloc one container with cpu affinity
-func ReselectCPUNodes(ctx context.Context, nodeResourceInfo *types.NodeResourceInfo, nodeName string, CPU types.CPUMap, quota float64, memory int64, maxShare, shareBase int) (types.ScheduleInfo, map[string][]types.CPUMap, int, error) {
+func ReselectCPUNodes(ctx context.Context, nodeResourceInfo *types.NodeResourceInfo, nodeName string, CPU types.CPUMap, quota float64, memory int64, maxShare, shareBase int) (map[string][]types.CPUMap, int, error) {
 	scheduleInfo := types.NodeResourceInfoToScheduleInfo(nodeResourceInfo, nodeName)
 	log.Infof(ctx, "[ReselectCPUNodes] resources %v, need cpu %f, need memory %d, existing %v",
 		struct {
@@ -128,12 +128,12 @@ func ReselectCPUNodes(ctx context.Context, nodeResourceInfo *types.NodeResourceI
 			},
 		}
 		scheduleInfo.Capacity = 1
-		return scheduleInfo, cpuPlans, 1, nil
+		return cpuPlans, 1, nil
 	}
 
-	scheduleInfos, cpuPlans, total, err := SelectCPUNodes(ctx, []types.ScheduleInfo{scheduleInfo}, quota, memory, maxShare, shareBase)
+	_, cpuPlans, total, err := SelectCPUNodes(ctx, []types.ScheduleInfo{scheduleInfo}, quota, memory, maxShare, shareBase)
 	if err != nil {
-		return scheduleInfo, nil, 0, errors.Wrap(err, "failed to reschedule cpu")
+		return nil, 0, errors.Wrap(err, "failed to reschedule cpu")
 	}
 
 	// add affinity plans
@@ -146,7 +146,7 @@ func ReselectCPUNodes(ctx context.Context, nodeResourceInfo *types.NodeResourceI
 			}
 		}
 	}
-	return scheduleInfos[0], cpuPlans, total, nil
+	return cpuPlans, total, nil
 }
 
 func cpuPriorPlan(ctx context.Context, cpu float64, memory int64, scheduleInfos []types.ScheduleInfo, maxShareCore, coreShare int) ([]types.ScheduleInfo, map[string][]types.CPUMap, int, error) {
