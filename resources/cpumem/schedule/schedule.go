@@ -1,298 +1,345 @@
 package schedule
 
 import (
-	"context"
-	"math"
+	"container/heap"
 	"sort"
+	"strconv"
 
-	"github.com/pkg/errors"
-
-	"github.com/projecteru2/core/log"
-	"github.com/projecteru2/core/resources"
 	"github.com/projecteru2/core/resources/cpumem/types"
-	"github.com/projecteru2/core/utils"
 )
 
-// Schedule .
-func Schedule(ctx context.Context, nodes []*types.NodeResourceInfo, nodeNames []string, request *types.WorkloadResourceOpts, maxShare, shareBase int) (capacityMap map[string]int, cpuPlans map[string][]types.CPUMap, total int, err error) {
-	scheduleInfos := []types.ScheduleInfo{}
-	for i, node := range nodes {
-		scheduleInfos = append(scheduleInfos, types.NodeResourceInfoToScheduleInfo(node, nodeNames[i]))
-	}
-
-	if !request.CPUBind || request.CPURequest == 0 {
-		scheduleInfos, total, err = SelectMemoryNodes(ctx, scheduleInfos, request.CPURequest, request.MemRequest)
-	} else {
-		scheduleInfos, cpuPlans, total, err = SelectCPUNodes(ctx, scheduleInfos, request.CPURequest, request.MemRequest, maxShare, shareBase)
-	}
-
-	capacityMap = map[string]int{}
-	for _, info := range scheduleInfos {
-		capacityMap[info.Name] = info.Capacity
-	}
-
-	return capacityMap, cpuPlans, total, err
+type cpuCore struct {
+	id     string
+	pieces int
 }
 
-// SelectMemoryNodes filter nodes with enough memory
-func SelectMemoryNodes(ctx context.Context, scheduleInfos []types.ScheduleInfo, quota float64, memory int64) ([]types.ScheduleInfo, int, error) {
-	resources := []struct {
-		Nodename string
-		CPU      types.CPUMap
-		Memory   int64
-	}{}
-	for _, scheduleInfo := range scheduleInfos {
-		resources = append(resources, struct {
-			Nodename string
-			CPU      types.CPUMap
-			Memory   int64
-		}{scheduleInfo.Name, scheduleInfo.CPU, scheduleInfo.MemCap})
+func (c *cpuCore) LessThan(c1 *cpuCore) bool {
+	if c.pieces == c1.pieces {
+		idI, _ := strconv.Atoi(c.id)
+		idJ, _ := strconv.Atoi(c1.id)
+		return idI < idJ
 	}
-	log.Infof(ctx, "[SelectMemoryNodes] resources: %v, need cpu: %f, memory: %d", resources, quota, memory)
-	scheduleInfosLength := len(scheduleInfos)
-
-	// 筛选出能满足 CPU 需求的
-	sort.Slice(scheduleInfos, func(i, j int) bool { return len(scheduleInfos[i].CPU) < len(scheduleInfos[j].CPU) })
-	p := sort.Search(scheduleInfosLength, func(i int) bool {
-		return float64(len(scheduleInfos[i].CPU)) >= quota
-	})
-	// p 最大也就是 scheduleInfosLength - 1
-	if p == scheduleInfosLength {
-		return nil, 0, errors.Wrapf(types.ErrInsufficientCPU, "no node remains cpu more than %0.2f", quota)
-	}
-	scheduleInfosLength -= p
-	scheduleInfos = scheduleInfos[p:]
-
-	// 计算是否有足够的内存满足需求
-	sort.Slice(scheduleInfos, func(i, j int) bool { return scheduleInfos[i].MemCap < scheduleInfos[j].MemCap })
-	p = sort.Search(scheduleInfosLength, func(i int) bool { return scheduleInfos[i].MemCap >= memory })
-	if p == scheduleInfosLength {
-		return nil, 0, errors.Wrapf(types.ErrInsufficientMem, "no node remains memory more than %d bytes", memory)
-	}
-	scheduleInfos = scheduleInfos[p:]
-
-	// 这里 memCap 一定是大于 memory 的所以不用判断 cap 内容
-	volTotal := 0
-	for i, scheduleInfo := range scheduleInfos {
-		capacity := math.MaxInt32
-		if memory != 0 {
-			capacity = int(scheduleInfo.MemCap / memory)
-		}
-		volTotal += capacity
-		scheduleInfos[i].Capacity = capacity
-	}
-	return scheduleInfos, volTotal, nil
+	return c.pieces < c1.pieces
 }
 
-// SelectCPUNodes select nodes with enough cpus
-func SelectCPUNodes(ctx context.Context, scheduleInfos []types.ScheduleInfo, quota float64, memory int64, maxShare, shareBase int) ([]types.ScheduleInfo, map[string][]types.CPUMap, int, error) {
-	resources := []struct {
-		Nodename string
-		Memory   int64
-		CPU      types.CPUMap
-	}{}
-	for _, scheduleInfo := range scheduleInfos {
-		resources = append(resources, struct {
-			Nodename string
-			Memory   int64
-			CPU      types.CPUMap
-		}{scheduleInfo.Name, scheduleInfo.MemCap, scheduleInfo.CPU})
-	}
-	log.Infof(ctx, "[SelectCPUNodes] resources %v, need cpu: %f memory: %d", resources, quota, memory)
-	if quota <= 0 {
-		return nil, nil, 0, errors.WithStack(types.ErrInvalidCPU)
-	}
-	if len(scheduleInfos) == 0 {
-		return nil, nil, 0, errors.WithStack(types.ErrNoNode)
-	}
+type cpuCoreHeap []*cpuCore
 
-	return cpuPriorPlan(ctx, quota, memory, scheduleInfos, maxShare, shareBase)
+// Len .
+func (c cpuCoreHeap) Len() int {
+	return len(c)
 }
 
-// ReselectCPUNodes used for realloc one container with cpu affinity
-func ReselectCPUNodes(ctx context.Context, nodeResourceInfo *types.NodeResourceInfo, nodeName string, CPU types.CPUMap, quota float64, memory int64, maxShare, shareBase int) (map[string][]types.CPUMap, int, error) {
-	scheduleInfo := types.NodeResourceInfoToScheduleInfo(nodeResourceInfo, nodeName)
-	log.Infof(ctx, "[ReselectCPUNodes] resources %v, need cpu %f, need memory %d, existing %v",
-		struct {
-			Nodename string
-			Memory   int64
-			CPU      types.CPUMap
-		}{scheduleInfo.Name, scheduleInfo.MemCap, scheduleInfo.CPU},
-		quota, memory, CPU)
-	var affinityPlan types.CPUMap
-	// remaining quota that's impossible to achieve affinity
-	if scheduleInfo, quota, affinityPlan = cpuReallocPlan(scheduleInfo, quota, CPU, int64(shareBase)); quota == 0 {
-		cpuPlans := map[string][]types.CPUMap{
-			scheduleInfo.Name: {
-				affinityPlan,
-			},
-		}
-		scheduleInfo.Capacity = 1
-		return cpuPlans, 1, nil
-	}
-
-	_, cpuPlans, total, err := SelectCPUNodes(ctx, []types.ScheduleInfo{scheduleInfo}, quota, memory, maxShare, shareBase)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to reschedule cpu")
-	}
-
-	// add affinity plans
-	for i, plan := range cpuPlans[scheduleInfo.Name] {
-		for cpuID, pieces := range affinityPlan {
-			if _, ok := plan[cpuID]; ok {
-				cpuPlans[scheduleInfo.Name][i][cpuID] += pieces
-			} else {
-				cpuPlans[scheduleInfo.Name][i][cpuID] = pieces
-			}
-		}
-	}
-	return cpuPlans, total, nil
+// Less .
+func (c cpuCoreHeap) Less(i, j int) bool {
+	return !c[i].LessThan(c[j])
 }
 
-func cpuPriorPlan(ctx context.Context, cpu float64, memory int64, scheduleInfos []types.ScheduleInfo, maxShareCore, coreShare int) ([]types.ScheduleInfo, map[string][]types.CPUMap, int, error) {
-	var nodeWorkload = map[string][]types.CPUMap{}
-	volTotal := 0
+// Swap .
+func (c cpuCoreHeap) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
 
-	for p, scheduleInfo := range scheduleInfos {
-		// 统计全局 CPU，为非 numa 或者跨 numa 计算
-		globalCPUMap := scheduleInfo.CPU
-		// 统计全局 Memory
-		globalMemCap := scheduleInfo.MemCap
-		// 计算每个 numa node 的分配策略
-		// 得到 numa CPU 分组
-		numaCPUMap := map[string]types.CPUMap{}
-		for cpuID, nodeID := range scheduleInfo.NUMA {
-			if _, ok := numaCPUMap[nodeID]; !ok {
-				numaCPUMap[nodeID] = types.CPUMap{}
-			}
-			cpuCount, ok := scheduleInfo.CPU[cpuID]
-			if !ok {
-				continue
-			}
-			numaCPUMap[nodeID][cpuID] = cpuCount
+// Push .
+func (c *cpuCoreHeap) Push(x interface{}) {
+	*c = append(*c, x.(*cpuCore))
+}
+
+// Pop .
+func (c *cpuCoreHeap) Pop() interface{} {
+	old := *c
+	n := len(old)
+	x := old[n-1]
+	*c = old[:n-1]
+	return x
+}
+
+type host struct {
+	shareBase        int
+	maxFragmentCores int
+	fullCores        []*cpuCore
+	fragmentCores    []*cpuCore
+	affinity         bool
+}
+
+type cpuPlan struct {
+	NUMANode string
+	CPUMap   types.CPUMap
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// GetCPUPlans .
+func GetCPUPlans(resourceInfo *types.NodeResourceInfo, originCPUMap types.CPUMap, shareBase int, maxFragmentCores int, resourceOpts *types.WorkloadResourceOpts) []*cpuPlan {
+	cpuPlans := []*cpuPlan{}
+	availableResourceArgs := resourceInfo.GetAvailableResource()
+
+	numaCPUMap := map[string]types.CPUMap{}
+	for cpuID, numaNodeID := range resourceInfo.Capacity.NUMA {
+		if _, ok := numaCPUMap[numaNodeID]; !ok {
+			numaCPUMap[numaNodeID] = types.CPUMap{}
 		}
-		for nodeID, nodeCPUMap := range numaCPUMap {
-			nodeMemCap, ok := scheduleInfo.NUMAMemory[nodeID]
-			if !ok {
-				continue
+		numaCPUMap[numaNodeID][cpuID] = availableResourceArgs.CPUMap[cpuID]
+	}
+
+	// get cpu plan for each numa node
+	for numaNodeID, cpuMap := range numaCPUMap {
+		numaCPUPlans := doGetCPUPlans(originCPUMap, cpuMap, availableResourceArgs.NUMAMemory[numaNodeID], shareBase, maxFragmentCores, resourceOpts.CPURequest, resourceOpts.MemRequest)
+		for _, workloadCPUMap := range numaCPUPlans {
+			cpuPlans = append(cpuPlans, &cpuPlan{
+				NUMANode: numaNodeID,
+				CPUMap:   workloadCPUMap,
+			})
+			availableResourceArgs.Sub(&types.NodeResourceArgs{
+				CPU:        resourceOpts.CPURequest,
+				CPUMap:     workloadCPUMap,
+				Memory:     resourceOpts.MemRequest,
+				NUMAMemory: types.NUMAMemory{numaNodeID: resourceOpts.MemRequest},
+			})
+		}
+	}
+
+	// get cpu plan with the remaining resource
+	crossNUMACPUPlans := doGetCPUPlans(originCPUMap, availableResourceArgs.CPUMap, availableResourceArgs.Memory, shareBase, maxFragmentCores, resourceOpts.CPURequest, resourceOpts.MemRequest)
+	for _, workloadCPUMap := range crossNUMACPUPlans {
+		cpuPlans = append(cpuPlans, &cpuPlan{
+			CPUMap: workloadCPUMap,
+		})
+	}
+
+	return cpuPlans
+}
+
+// ensure that the old cpu core will still be allocated first
+func reorderByAffinity(oldH, newH *host) {
+	oldFull := map[string]int{}
+	oldFragment := map[string]int{}
+
+	for i, core := range oldH.fullCores {
+		oldFull[core.id] = i + 1
+	}
+	for i, core := range oldH.fragmentCores {
+		oldFragment[core.id] = i + 1
+	}
+
+	sortFunc := func(orderMap map[string]int, cores []*cpuCore) func(i, j int) bool {
+		return func(i, j int) bool {
+			idxI := orderMap[cores[i].id]
+			idxJ := orderMap[cores[j].id]
+
+			if idxI == 0 && idxJ == 0 {
+				return i < j
 			}
-			cap, plan := calculateCPUPlan(nodeCPUMap, nodeMemCap, cpu, memory, maxShareCore, coreShare)
-			if cap > 0 {
-				if _, ok := nodeWorkload[scheduleInfo.Name]; !ok {
-					nodeWorkload[scheduleInfo.Name] = []types.CPUMap{}
+			if idxI == 0 || idxJ == 0 {
+				return idxI > idxJ
+			}
+			return idxI < idxJ
+		}
+	}
+
+	sort.SliceStable(newH.fullCores, sortFunc(oldFull, newH.fullCores))
+	sort.SliceStable(newH.fragmentCores, sortFunc(oldFragment, newH.fragmentCores))
+	newH.affinity = true
+}
+
+// doGetCPUPlans .
+func doGetCPUPlans(originCPUMap, availableCPUMap types.CPUMap, availableMemory int64, shareBase int, maxFragmentCores int, cpuRequest float64, memoryRequest int64) []types.CPUMap {
+	h := newHost(availableCPUMap, shareBase, maxFragmentCores)
+
+	// affinity
+	if len(originCPUMap) > 0 {
+		originH := newHost(originCPUMap, shareBase, maxFragmentCores)
+		reorderByAffinity(originH, h)
+	}
+
+	cpuPlans := h.getCPUPlans(cpuRequest)
+	if memoryRequest > 0 {
+		memoryCapacity := int(availableMemory / memoryRequest)
+		if memoryCapacity < len(cpuPlans) {
+			cpuPlans = cpuPlans[:memoryCapacity]
+		}
+	}
+	return cpuPlans
+}
+
+func newHost(cpuMap types.CPUMap, shareBase int, maxFragmentCores int) *host {
+	h := &host{
+		shareBase:        shareBase,
+		maxFragmentCores: maxFragmentCores,
+		fullCores:        []*cpuCore{},
+		fragmentCores:    []*cpuCore{},
+	}
+
+	for cpu, pieces := range cpuMap {
+		if pieces >= shareBase && pieces%shareBase == 0 {
+			h.fullCores = append(h.fullCores, &cpuCore{id: cpu, pieces: pieces})
+		} else if pieces > 0 {
+			h.fragmentCores = append(h.fragmentCores, &cpuCore{id: cpu, pieces: pieces})
+		}
+	}
+
+	sortFunc := func(cores []*cpuCore) func(i, j int) bool {
+		return func(i, j int) bool {
+			// give priority to the CPU cores with higher load
+			return cores[i].LessThan(cores[j])
+		}
+	}
+
+	sort.SliceStable(h.fullCores, sortFunc(h.fullCores))
+	sort.SliceStable(h.fragmentCores, sortFunc(h.fragmentCores))
+
+	return h
+}
+
+func (h *host) getCPUPlans(cpuRequest float64) []types.CPUMap {
+	piecesRequest := int(cpuRequest * float64(h.shareBase))
+	full := piecesRequest / h.shareBase
+	fragment := piecesRequest % h.shareBase
+
+	maxFragmentCores := len(h.fullCores) + len(h.fragmentCores) - full
+	if h.maxFragmentCores == -1 || h.maxFragmentCores > maxFragmentCores {
+		h.maxFragmentCores = maxFragmentCores
+	}
+
+	if fragment == 0 {
+		return h.getFullCPUPlans(h.fullCores, full)
+	}
+
+	if full == 0 {
+		diff := h.maxFragmentCores - len(h.fragmentCores)
+		h.fragmentCores = append(h.fragmentCores, h.fullCores[:diff]...)
+		h.fullCores = h.fullCores[diff:]
+		return h.getFragmentCPUPlans(h.fragmentCores, fragment)
+	}
+
+	fragmentCapacityMap := map[string]int{}
+	totalFragmentCapacity := 0 // for lazy loading
+	bestCPUPlans := [2][]types.CPUMap{h.getFullCPUPlans(h.fullCores, full), h.getFragmentCPUPlans(h.fragmentCores, fragment)}
+	bestCapacity := min(len(bestCPUPlans[0]), len(bestCPUPlans[1]))
+
+	for _, core := range h.fullCores {
+		fragmentCapacityMap[core.id] = core.pieces / fragment
+	}
+
+	for _, core := range h.fragmentCores {
+		fragmentCapacityMap[core.id] = core.pieces / fragment
+		totalFragmentCapacity += fragmentCapacityMap[core.id]
+	}
+
+	for len(h.fragmentCores) < h.maxFragmentCores {
+		// convert a full core to fragment core
+		newFragmentCore := h.fullCores[0]
+		h.fragmentCores = append(h.fragmentCores, newFragmentCore)
+		h.fullCores = h.fullCores[1:]
+		totalFragmentCapacity += fragmentCapacityMap[newFragmentCore.id]
+
+		fullCPUPlans := h.getFullCPUPlans(h.fullCores, full)
+		capacity := min(len(fullCPUPlans), totalFragmentCapacity)
+		if capacity > bestCapacity {
+			bestCPUPlans[0] = fullCPUPlans
+			bestCPUPlans[1] = h.getFragmentCPUPlans(h.fragmentCores, fragment)
+			bestCapacity = capacity
+		}
+	}
+
+	cpuPlans := []types.CPUMap{}
+	for i := 0; i < bestCapacity; i++ {
+		fullCPUPlans := bestCPUPlans[0]
+		fragmentCPUPlans := bestCPUPlans[1]
+
+		cpuMap := types.CPUMap{}
+		cpuMap.Add(fullCPUPlans[i])
+		cpuMap.Add(fragmentCPUPlans[i])
+
+		cpuPlans = append(cpuPlans, cpuMap)
+	}
+
+	return cpuPlans
+}
+
+func (h *host) getFullCPUPlans(cores []*cpuCore, full int) []types.CPUMap {
+	if h.affinity {
+		return h.getFullCPUPlansWithAffinity(cores, full)
+	}
+
+	result := []types.CPUMap{}
+	cpuHeap := &cpuCoreHeap{}
+	indexMap := map[string]int{}
+	for i, core := range cores {
+		indexMap[core.id] = i
+		cpuHeap.Push(&cpuCore{id: core.id, pieces: core.pieces})
+	}
+	heap.Init(cpuHeap)
+
+	for cpuHeap.Len() >= full {
+		plan := types.CPUMap{}
+		resourcesToPush := []*cpuCore{}
+
+		for i := 0; i < full; i++ {
+			core := heap.Pop(cpuHeap).(*cpuCore)
+			plan[core.id] = h.shareBase
+
+			core.pieces -= h.shareBase
+			if core.pieces > 0 {
+				resourcesToPush = append(resourcesToPush, core)
+			}
+		}
+
+		result = append(result, plan)
+		for _, core := range resourcesToPush {
+			heap.Push(cpuHeap, core)
+		}
+	}
+
+	// Try to ensure the effectiveness of the previous priority
+	sumOfIds := func(c types.CPUMap) int {
+		sum := 0
+		for id := range c {
+			sum += indexMap[id]
+		}
+		return sum
+	}
+
+	sort.Slice(result, func(i, j int) bool { return sumOfIds(result[i]) < sumOfIds(result[j]) })
+
+	return result
+}
+
+func (h *host) getFullCPUPlansWithAffinity(cores []*cpuCore, full int) []types.CPUMap {
+	result := []types.CPUMap{}
+
+	for len(cores) >= full {
+		count := len(cores) / full
+		tempCores := []*cpuCore{}
+		for i := 0; i < count; i++ {
+			cpuMap := types.CPUMap{}
+			for j := i * full; j < i*full+full; j++ {
+				cpuMap[cores[j].id] = h.shareBase
+
+				remainingPieces := cores[j].pieces - h.shareBase
+				if remainingPieces > 0 {
+					tempCores = append(tempCores, &cpuCore{id: cores[j].id, pieces: remainingPieces})
 				}
-				volTotal += cap
-				globalMemCap -= int64(cap) * memory
-				for _, cpuPlan := range plan {
-					globalCPUMap.Sub(cpuPlan)
-					nodeWorkload[scheduleInfo.Name] = append(nodeWorkload[scheduleInfo.Name], cpuPlan)
-				}
 			}
-			log.Infof(ctx, "[cpuPriorPlan] node %s numa node %s deploy capacity %d", scheduleInfo.Name, nodeID, cap)
+			result = append(result, cpuMap)
 		}
-		// 非 numa
-		// 或者是扣掉 numa 分配后剩下的资源里面
-		cap, plan := calculateCPUPlan(globalCPUMap, globalMemCap, cpu, memory, maxShareCore, coreShare)
-		if cap > 0 {
-			if _, ok := nodeWorkload[scheduleInfo.Name]; !ok {
-				nodeWorkload[scheduleInfo.Name] = []types.CPUMap{}
-			}
-			scheduleInfos[p].Capacity += cap
-			volTotal += cap
-			nodeWorkload[scheduleInfo.Name] = append(nodeWorkload[scheduleInfo.Name], plan...)
-		}
-		log.Infof(ctx, "[cpuPriorPlan] node %s total deploy capacity %d", scheduleInfo.Name, scheduleInfos[p].Capacity)
+
+		cores = append(tempCores, cores[len(cores)/full*full:]...)
 	}
 
-	// 裁剪掉不能部署的
-	sort.Slice(scheduleInfos, func(i, j int) bool { return scheduleInfos[i].Capacity < scheduleInfos[j].Capacity })
-	p := sort.Search(len(scheduleInfos), func(i int) bool { return scheduleInfos[i].Capacity > 0 })
-	if p == len(scheduleInfos) {
-		return nil, nil, 0, errors.Wrapf(types.ErrInsufficientResource, "no node remains %.2f pieces of cpu and %d bytes of memory at the same time", cpu, memory)
-	}
-
-	return scheduleInfos[p:], nodeWorkload, volTotal, nil
+	return result
 }
 
-func calculateCPUPlan(CPUMap types.CPUMap, MemCap int64, cpu float64, memory int64, maxShareCore, coreShare int) (int, []types.CPUMap) {
-	host := resources.NewHost(resources.ResourceMap(CPUMap), coreShare)
-	resourceMaps := host.DistributeOneRation(cpu, maxShareCore)
-	plan := []types.CPUMap{}
-	for _, resourceMap := range resourceMaps {
-		plan = append(plan, types.CPUMap(resourceMap))
-	}
-	memLimit := math.MaxInt64
-	if memory != 0 {
-		memLimit = utils.Max(int(MemCap/memory), 0)
-	}
-	cap := len(plan) // 每个node可以放的容器数
-	if cap > memLimit {
-		plan = plan[:memLimit]
-		cap = memLimit
-	}
-	if cap <= 0 {
-		plan = nil
-	}
-	return cap, plan
-}
-
-func cpuReallocPlan(scheduleInfo types.ScheduleInfo, quota float64, CPU types.CPUMap, sharebase int64) (types.ScheduleInfo, float64, types.CPUMap) {
-	affinityPlan := make(types.CPUMap)
-	diff := int64(quota*float64(sharebase)) - CPU.TotalPieces()
-	// sort by pieces
-	cpuIDs := []string{}
-	for cpuID := range CPU {
-		cpuIDs = append(cpuIDs, cpuID)
-	}
-	sort.Slice(cpuIDs, func(i, j int) bool { return CPU[cpuIDs[i]] < CPU[cpuIDs[j]] })
-
-	// shrink, ensure affinity
-	if diff <= 0 {
-		affinityPlan = CPU
-		// prioritize fragments
-		for _, cpuID := range cpuIDs {
-			if diff == 0 {
-				break
-			}
-			shrink := utils.Min64(affinityPlan[cpuID], -diff)
-			affinityPlan[cpuID] -= shrink
-			if affinityPlan[cpuID] == 0 {
-				delete(affinityPlan, cpuID)
-			}
-			diff += shrink
-			scheduleInfo.CPU[cpuID] += shrink
+func (h *host) getFragmentCPUPlans(cores []*cpuCore, fragment int) []types.CPUMap {
+	result := []types.CPUMap{}
+	for _, core := range cores {
+		for i := 0; i < core.pieces/fragment; i++ {
+			result = append(result, types.CPUMap{core.id: fragment})
 		}
-		return scheduleInfo, float64(0), affinityPlan
 	}
-
-	// expand, prioritize full cpus
-	needPieces := int64(quota * float64(sharebase))
-	for i := len(cpuIDs) - 1; i >= 0; i-- {
-		cpuID := cpuIDs[i]
-		if needPieces == 0 {
-			scheduleInfo.CPU[cpuID] += CPU[cpuID]
-			continue
-		}
-
-		// whole cpu, keep it
-		if CPU[cpuID] == sharebase {
-			affinityPlan[cpuID] = sharebase
-			needPieces -= sharebase
-			continue
-		}
-
-		// fragments, try to find complement
-		if available := scheduleInfo.CPU[cpuID]; available == sharebase-CPU[cpuID] {
-			expand := utils.Min64(available, needPieces)
-			affinityPlan[cpuID] = CPU[cpuID] + expand
-			scheduleInfo.CPU[cpuID] -= expand
-			needPieces -= sharebase
-			continue
-		}
-
-		// else, return to cpu pools
-		scheduleInfo.CPU[cpuID] += CPU[cpuID]
-	}
-
-	return scheduleInfo, float64(needPieces) / float64(sharebase), affinityPlan
+	return result
 }

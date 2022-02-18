@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/projecteru2/core/resources/volume/schedule"
@@ -22,7 +23,7 @@ func (v *Volume) GetDeployArgs(ctx context.Context, node string, deployCount int
 		return nil, nil, err
 	}
 
-	return v.doAlloc(ctx, resourceInfo, node, deployCount, opts)
+	return v.doAlloc(resourceInfo, deployCount, opts)
 }
 
 func maxInt64(a, b int64) int64 {
@@ -42,33 +43,26 @@ func getVolumePlanLimit(bindings types.VolumeBindings, volumePlan types.VolumePl
 
 	for _, binding := range bindings {
 		if volumeMap, ok := volumeBindingToVolumeMap[binding.GetMapKey()]; ok {
-			volumePlanLimit[*binding] = types.VolumeMap{volumeMap.GetResourceID(): maxInt64(binding.SizeInBytes, volumeMap.GetRation())}
+			volumePlanLimit[binding] = types.VolumeMap{volumeMap.GetDevice(): maxInt64(binding.SizeInBytes, volumeMap.GetSize())}
 		}
 	}
 	return volumePlanLimit
 }
 
-func (v *Volume) doAlloc(ctx context.Context, resourceInfo *types.NodeResourceInfo, node string, deployCount int, opts *types.WorkloadResourceOpts) ([]*types.EngineArgs, []*types.WorkloadResourceArgs, error) {
-	_, volumePlansMap, total, err := schedule.Schedule(ctx, []*types.NodeResourceInfo{resourceInfo}, []string{node}, opts)
-	if err != nil {
-		logrus.Errorf("[doAlloc] failed to schedule, err: %v", err)
-		return nil, nil, err
-	}
-
-	if total < deployCount {
-		return nil, nil, types.ErrInsufficientResource
-	}
-
-	volumePlans := []types.VolumePlan{}
-	for _, plans := range volumePlansMap {
-		volumePlans = append(volumePlans, plans...)
+func (v *Volume) doAlloc(resourceInfo *types.NodeResourceInfo, deployCount int, opts *types.WorkloadResourceOpts) ([]*types.EngineArgs, []*types.WorkloadResourceArgs, error) {
+	// check if storage is enough
+	if opts.StorageRequest > 0 {
+		storageCapacity := int((resourceInfo.Capacity.Storage - resourceInfo.Usage.Storage) / opts.StorageRequest)
+		if storageCapacity < deployCount {
+			return nil, nil, errors.Wrapf(types.ErrInsufficientResource, "not enough storage, request: %v, available: %v", opts.StorageRequest, storageCapacity)
+		}
 	}
 
 	resEngineArgs := []*types.EngineArgs{}
 	resResourceArgs := []*types.WorkloadResourceArgs{}
 
 	// if volume is not required
-	if len(volumePlans) == 0 {
+	if len(opts.VolumesRequest) == 0 {
 		for i := 0; i < deployCount; i++ {
 			resEngineArgs = append(resEngineArgs, &types.EngineArgs{
 				Storage: opts.StorageLimit,
@@ -79,6 +73,11 @@ func (v *Volume) doAlloc(ctx context.Context, resourceInfo *types.NodeResourceIn
 			})
 		}
 		return resEngineArgs, resResourceArgs, nil
+	}
+
+	volumePlans := schedule.GetVolumePlans(resourceInfo, opts.VolumesRequest, v.config.Scheduler.MaxDeployCount)
+	if len(volumePlans) < deployCount {
+		return nil, nil, errors.Wrapf(types.ErrInsufficientResource, "not enough volume plan, need %v, available %v", deployCount, len(volumePlans))
 	}
 
 	volumePlans = volumePlans[:deployCount]

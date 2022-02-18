@@ -17,18 +17,6 @@ func (c *CPUMem) GetNodesDeployCapacity(ctx context.Context, nodes []string, opt
 		return nil, 0, err
 	}
 
-	nodeInfos := []*types.NodeResourceInfo{}
-	nodeInfoMap := map[string]*types.NodeResourceInfo{}
-	for _, node := range nodes {
-		resourceInfo, err := c.doGetNodeResourceInfo(ctx, node)
-		if err != nil {
-			logrus.Errorf("[GetNodesDeployCapacity] failed to get resource info of node %v, err: %v", node, err)
-			return nil, 0, err
-		}
-		nodeInfos = append(nodeInfos, resourceInfo)
-		nodeInfoMap[node] = resourceInfo
-	}
-
 	capacityInfoMap := map[string]*types.NodeCapacityInfo{}
 	total := 0
 	for _, node := range nodes {
@@ -37,7 +25,7 @@ func (c *CPUMem) GetNodesDeployCapacity(ctx context.Context, nodes []string, opt
 			logrus.Errorf("[GetNodesDeployCapacity] failed to get resource info of node %v, err: %v", node, err)
 			return nil, 0, err
 		}
-		capacityInfo := c.doGetNodeCapacityInfo(ctx, node, resourceInfo, opts)
+		capacityInfo := c.doGetNodeCapacityInfo(node, resourceInfo, opts)
 		if capacityInfo.Capacity > 0 {
 			capacityInfoMap[node] = capacityInfo
 			if total == math.MaxInt || capacityInfo.Capacity == math.MaxInt {
@@ -51,7 +39,7 @@ func (c *CPUMem) GetNodesDeployCapacity(ctx context.Context, nodes []string, opt
 	return capacityInfoMap, total, nil
 }
 
-func (c *CPUMem) doGetNodeCapacityInfo(ctx context.Context, node string, resourceInfo *types.NodeResourceInfo, opts *types.WorkloadResourceOpts) *types.NodeCapacityInfo {
+func (c *CPUMem) doGetNodeCapacityInfo(node string, resourceInfo *types.NodeResourceInfo, opts *types.WorkloadResourceOpts) *types.NodeCapacityInfo {
 	availableResourceArgs := resourceInfo.GetAvailableResource()
 
 	capacityInfo := &types.NodeCapacityInfo{
@@ -80,13 +68,8 @@ func (c *CPUMem) doGetNodeCapacityInfo(ctx context.Context, node string, resourc
 	}
 
 	// if cpu-bind is required, then returns capacity by cpu scheduling
-	_, _, total, err := schedule.Schedule(ctx, []*types.NodeResourceInfo{resourceInfo}, []string{node}, opts, c.config.Scheduler.MaxShare, c.config.Scheduler.ShareBase)
-	if err != nil {
-		logrus.Errorf("[doGetNodeCapacityInfo] cpumem failed to schedule, err: %v", err)
-		return capacityInfo
-	}
-
-	capacityInfo.Capacity = total
+	cpuPlans := schedule.GetCPUPlans(resourceInfo, nil, c.config.Scheduler.ShareBase, c.config.Scheduler.MaxShare, opts)
+	capacityInfo.Capacity = len(cpuPlans)
 	capacityInfo.Usage = resourceInfo.Usage.CPU / resourceInfo.Capacity.CPU
 	capacityInfo.Rate = opts.CPURequest / resourceInfo.Capacity.CPU
 	capacityInfo.Weight = 100

@@ -255,7 +255,7 @@ func (c *CPUMemPlugin) AddNode(ctx context.Context, nodeName string, resourceOpt
 		if len(nodeResourceOpts.CPUMap) == 0 {
 			nodeResourceOpts.CPUMap = types.CPUMap{}
 			for i := 0; i < nodeInfo.NCPU; i++ {
-				nodeResourceOpts.CPUMap[strconv.Itoa(i)] = int64(c.c.config.Scheduler.ShareBase)
+				nodeResourceOpts.CPUMap[strconv.Itoa(i)] = c.c.config.Scheduler.ShareBase
 			}
 		}
 

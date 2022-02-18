@@ -46,12 +46,8 @@ func (v *Volume) doGetNodeCapacityInfo(ctx context.Context, node string, resourc
 	}
 
 	// get volume capacity
-	_, _, total, err := schedule.Schedule(ctx, []*types.NodeResourceInfo{resourceInfo}, []string{node}, opts)
-	if err != nil {
-		logrus.Errorf("[doGetNodeCapacityInfo] failed to schedule node %v, err: %v", node, err)
-		return capacityInfo
-	}
-	capacityInfo.Capacity = total
+	volumePlans := schedule.GetVolumePlans(resourceInfo, opts.VolumesRequest, v.config.Scheduler.MaxDeployCount)
+	capacityInfo.Capacity = len(volumePlans)
 
 	// get storage capacity
 	if opts.StorageRequest > 0 {

@@ -8,17 +8,16 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/projecteru2/core/resources"
 	coretypes "github.com/projecteru2/core/types"
 	coreutils "github.com/projecteru2/core/utils"
 )
 
 // CPUMap .
-type CPUMap resources.ResourceMap
+type CPUMap map[string]int
 
 // TotalPieces .
-func (c CPUMap) TotalPieces() int64 {
-	res := int64(0)
+func (c CPUMap) TotalPieces() int {
+	res := 0
 	for _, pieces := range c {
 		res += pieces
 	}
@@ -383,7 +382,7 @@ func (n *NodeResourceOpts) ParseFromRawParams(rawParams coretypes.RawParams) (er
 		}
 
 		for i := int64(0); i < cpu; i++ {
-			n.CPUMap[fmt.Sprintf("%v", i)] = share
+			n.CPUMap[fmt.Sprintf("%v", i)] = int(share)
 		}
 	} else {
 		cpuList := n.rawParams.String("cpu")
@@ -399,7 +398,7 @@ func (n *NodeResourceOpts) ParseFromRawParams(rawParams coretypes.RawParams) (er
 				if _, err := strconv.Atoi(cpuID); err != nil {
 					return err
 				}
-				n.CPUMap[cpuID] = pieces
+				n.CPUMap[cpuID] = int(pieces)
 			}
 		}
 	}

@@ -17,7 +17,7 @@ func (c *CPUMem) GetReallocArgs(ctx context.Context, node string, originResource
 
 	resourceInfo, err := c.doGetNodeResourceInfo(ctx, node)
 	if err != nil {
-		logrus.Errorf("[Realloc] failed to get resource info of node %v, err: %v", node, err)
+		logrus.Errorf("[GetReallocArgs] failed to get resource info of node %v, err: %v", node, err)
 		return nil, nil, nil, err
 	}
 
@@ -47,23 +47,14 @@ func (c *CPUMem) GetReallocArgs(ctx context.Context, node string, originResource
 	var numaMemory types.NUMAMemory
 
 	if resourceOpts.CPUBind {
-		cpuPlanMap, total, err := schedule.ReselectCPUNodes(ctx, resourceInfo, node, originResourceArgs.CPUMap, resourceOpts.CPURequest, resourceOpts.MemRequest, c.config.Scheduler.MaxShare, c.config.Scheduler.ShareBase)
-		if err != nil {
-			logrus.Errorf("[Realloc] failed to reselect cpu nodes, err: %v", err)
-			return nil, nil, nil, err
-		}
-		if total <= 0 {
+		cpuPlans := schedule.GetCPUPlans(resourceInfo, originResourceArgs.CPUMap, c.config.Scheduler.ShareBase, c.config.Scheduler.MaxShare, finalResourceOpts)
+		if len(cpuPlans) == 0 {
 			return nil, nil, nil, types.ErrInsufficientResource
 		}
 
-		var cpuPlan types.CPUMap
-		for _, plans := range cpuPlanMap {
-			cpuPlan = plans[0]
-			break
-		}
-
-		cpuMap = cpuPlan
-		numaNodeID = c.getNUMANodeID(cpuPlan, resourceInfo.Capacity.NUMA)
+		cpuPlan := cpuPlans[0]
+		cpuMap = cpuPlan.CPUMap
+		numaNodeID = cpuPlan.NUMANode
 		if len(numaNodeID) > 0 {
 			numaMemory = types.NUMAMemory{numaNodeID: finalResourceOpts.MemRequest}
 		}

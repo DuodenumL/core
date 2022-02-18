@@ -30,16 +30,10 @@ func (v *Volume) GetReallocArgs(ctx context.Context, node string, originResource
 		return nil, nil, nil, types.ErrInsufficientResource
 	}
 
-	volumePlanMap, _, err := schedule.ReselectVolumeNodes(ctx, resourceInfo, originResourceArgs.VolumePlanRequest, finalWorkloadResourceArgs.VolumesRequest)
-	if err != nil {
-		return nil, nil, nil, err
+	volumePlan := schedule.GetAffinityPlan(resourceInfo, resourceOpts.VolumesRequest, originResourceArgs.VolumePlanRequest)
+	if volumePlan == nil {
+		return nil, nil, nil, types.ErrInsufficientResource
 	}
-
-	volumePlans := []types.VolumePlan{}
-	for _, plans := range volumePlanMap {
-		volumePlans = append(volumePlans, plans...)
-	}
-	volumePlan := volumePlans[0]
 
 	finalWorkloadResourceArgs.VolumePlanRequest = volumePlan
 	finalWorkloadResourceArgs.VolumePlanLimit = getVolumePlanLimit(finalWorkloadResourceArgs.VolumesRequest, volumePlan)
@@ -71,7 +65,7 @@ func getDeltaWorkloadResourceArgs(originWorkloadResourceArgs, finalWorkloadResou
 	}
 
 	return &types.WorkloadResourceArgs{
-		VolumePlanRequest: types.VolumePlan{types.VolumeBinding{
+		VolumePlanRequest: types.VolumePlan{&types.VolumeBinding{
 			Source:      "fake-source",
 			Destination: "fake-destination",
 			Flags:       "fake-flags",
