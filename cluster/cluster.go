@@ -34,6 +34,8 @@ const (
 	NodeLock = "cnode_%s_%s"
 )
 
+var Panic = 0
+
 // Cluster define all interface
 type Cluster interface {
 	// meta service

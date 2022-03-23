@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/projecteru2/core/auth"
+	"github.com/projecteru2/core/cluster"
 	"github.com/projecteru2/core/cluster/calcium"
 	"github.com/projecteru2/core/engine/factory"
 	"github.com/projecteru2/core/log"
@@ -175,6 +176,11 @@ func main() {
 			Name:        "embedded-storage",
 			Usage:       "active embedded storage",
 			Destination: &embeddedStorage,
+		},
+		&cli.IntFlag{
+			Name:        "panic",
+			Usage:       "for qa debug",
+			Destination: &cluster.Panic,
 		},
 	}
 	app.Action = serve

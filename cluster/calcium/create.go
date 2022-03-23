@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/cornelk/hashmap"
+
 	"github.com/projecteru2/core/cluster"
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/log"
@@ -20,6 +22,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sanity-io/litter"
 )
+
+func panicAt(val int, msg string) {
+	if cluster.Panic == val {
+		fmt.Println(msg)
+		os.Exit(-1)
+	}
+}
 
 // CreateWorkload use options to create workloads
 func (c *Calcium) CreateWorkload(ctx context.Context, opts *types.DeployOptions) (chan *types.CreateWorkloadMessage, error) {
@@ -70,6 +79,8 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 			if resourceCommit != nil {
 				if err := resourceCommit(); err != nil {
 					logger.Errorf(ctx, "commit wal failed: %s, %+v", eventWorkloadResourceAllocated, err)
+				} else {
+					logger.Errorf(ctx, "commit wal success: %s", eventWorkloadResourceAllocated)
 				}
 			}
 		}()
@@ -82,6 +93,8 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 				}
 				if err := processingCommits[nodename](); err != nil {
 					logger.Errorf(ctx, "commit wal failed: %s, %s, %+v", eventProcessingCreated, nodename, err)
+				} else {
+					logger.Errorf(ctx, "commit wal success: %s, %s", eventProcessingCreated, nodename)
 				}
 			}
 		}()
@@ -117,6 +130,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 						if err = c.store.CreateProcessing(ctx, processing, deploy); err != nil {
 							return errors.WithStack(err)
 						}
+						panicAt(1, fmt.Sprintf("testing processing wal: restart will delete all the processing keys of %v in ETCD", nodename))
 					}
 					if resourceCommit, err = c.wal.Log(eventWorkloadResourceAllocated, nodes); err != nil {
 						return errors.WithStack(err)
@@ -127,6 +141,7 @@ func (c *Calcium) doCreateWorkloads(ctx context.Context, opts *types.DeployOptio
 
 			// then: deploy workloads
 			func(ctx context.Context) (err error) {
+				panicAt(2, "testing resource wal: 'eru-cli node resource' should show no diffs")
 				rollbackMap, err = c.doDeployWorkloads(ctx, ch, opts, plans, deployMap)
 				return err
 			},
@@ -320,6 +335,7 @@ func (c *Calcium) doDeployOneWorkload(
 				return errors.WithStack(err)
 			}
 			workload.ID = created.ID
+			panicAt(3, fmt.Sprintf("testing workload created wal: you will see container %s is in 'docker ps -a' but not in ETCD", workload.ID))
 			// We couldn't WAL the workload ID above VirtualizationCreate temporarily,
 			// so there's a time gap window, once the core process crashes between
 			// VirtualizationCreate and logCreateWorkload then the worload is leaky.
@@ -336,11 +352,15 @@ func (c *Calcium) doDeployOneWorkload(
 			if !decrProcessing {
 				processing = nil
 			}
+			panicAt(4, fmt.Sprintf("testing workload created wal: restart will remove container %s", workload.ID))
+
 			// add workload metadata first
 			if err := c.store.AddWorkload(ctx, workload, processing); err != nil {
 				return errors.WithStack(err)
 			}
 			log.Infof(ctx, "[doDeployOneWorkload] workload %s metadata created", workload.ID)
+
+			panicAt(5, fmt.Sprintf("testing workload created wal: restart will remove container %s and it's metadata in ETCD", workload.ID))
 
 			// Copy data to workload
 			if len(opts.Files) > 0 {
